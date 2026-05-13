@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      intro_requests: {
+        Row: {
+          address: string | null
+          company_name: string
+          created_at: string
+          expected_amount: string
+          id: string
+          investor_focus: string | null
+          investor_id: string
+          investor_initials: string | null
+          investor_name: string
+          investor_ticket: string | null
+          logo_url: string | null
+          reason: string
+          responded_at: string | null
+          response_reason: string | null
+          startup_user_id: string
+          status: Database["public"]["Enums"]["request_status"]
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_name: string
+          created_at?: string
+          expected_amount: string
+          id?: string
+          investor_focus?: string | null
+          investor_id: string
+          investor_initials?: string | null
+          investor_name: string
+          investor_ticket?: string | null
+          logo_url?: string | null
+          reason: string
+          responded_at?: string | null
+          response_reason?: string | null
+          startup_user_id: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_name?: string
+          created_at?: string
+          expected_amount?: string
+          id?: string
+          investor_focus?: string | null
+          investor_id?: string
+          investor_initials?: string | null
+          investor_name?: string
+          investor_ticket?: string | null
+          logo_url?: string | null
+          reason?: string
+          responded_at?: string | null
+          response_reason?: string | null
+          startup_user_id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -52,9 +112,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
+      request_status: "pending" | "accepted" | "rejected"
       user_role: "startup" | "investor"
     }
     CompositeTypes: {
@@ -183,6 +247,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      request_status: ["pending", "accepted", "rejected"],
       user_role: ["startup", "investor"],
     },
   },
