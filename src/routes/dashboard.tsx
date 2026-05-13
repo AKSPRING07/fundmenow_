@@ -23,7 +23,7 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-type Tab = "dashboard" | "for-you" | "discover" | "saved" | "connections" | "preferences" | "notifications" | "settings";
+type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings";
 
 function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth();
