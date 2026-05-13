@@ -25,13 +25,13 @@ export function FinalCTA() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-              <button className="group inline-flex items-center gap-2 rounded-xl bg-primary-foreground px-7 py-3.5 text-sm font-semibold text-navy shadow-elegant transition-smooth hover:bg-white hover:-translate-y-0.5">
+              <Link to="/role-select" className="group inline-flex items-center gap-2 rounded-xl bg-primary-foreground px-7 py-3.5 text-sm font-semibold text-navy shadow-elegant transition-smooth hover:bg-white hover:-translate-y-0.5">
                 Raise Capital
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-semibold backdrop-blur transition-smooth hover:bg-white/10 hover:-translate-y-0.5">
+              </Link>
+              <Link to="/role-select" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-semibold backdrop-blur transition-smooth hover:bg-white/10 hover:-translate-y-0.5">
                 Become an Investor
-              </button>
+              </Link>
             </div>
           </div>
         </div>
