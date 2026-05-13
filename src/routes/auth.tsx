@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Sparkles, Rocket, Briefcase, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, Settings, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,13 +32,11 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const switchMode = () =>
     navigate({ to: "/auth", search: { role, mode: isSignup ? "signin" : "signup" } });
-
-  const switchRole = () =>
-    navigate({ to: "/auth", search: { role: isInvestor ? "startup" : "investor", mode } });
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,55 +67,87 @@ function AuthPage() {
     }
   };
 
-  const accent = isInvestor
-    ? "from-[oklch(0.55_0.18_280)] to-primary"
-    : "from-primary to-primary-glow";
+  const oauth = async (provider: "google" | "github") => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error(err.message ?? "OAuth not configured");
+    }
+  };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-hero px-4 py-10">
-      <div className="absolute inset-0 grid-pattern opacity-40" />
-      <div className="absolute -left-24 top-24 h-80 w-80 rounded-full bg-primary/25 blur-3xl animate-pulse-glow" />
-      <div className="absolute -right-24 bottom-24 h-96 w-96 rounded-full bg-primary-glow/30 blur-3xl animate-pulse-glow" style={{ animationDelay: "1.2s" }} />
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top bar */}
+      <header className="flex items-center justify-between px-6 py-5 md:px-10">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600">
+            <span className="font-display text-sm font-bold text-white">V</span>
+          </div>
+          <span className="font-display text-lg font-bold tracking-tight">Ventura<span className="text-emerald-500">.</span></span>
+        </Link>
+        <div className="flex items-center gap-5 text-sm text-muted-foreground">
+          <button className="hidden items-center gap-1.5 hover:text-foreground sm:inline-flex">
+            <span>Need help?</span>
+          </button>
+          <button aria-label="Settings" className="rounded-full p-1.5 hover:bg-muted">
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+      </header>
 
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card/80 shadow-premium backdrop-blur-xl">
-        <div className="grid md:grid-cols-2">
-          {/* LEFT — Form */}
-          <div className="p-8 md:p-12">
-            <Link to="/" className="inline-flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-elegant">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <span className="font-display text-lg font-bold">Ventura<span className="text-gradient-primary">.</span></span>
-            </Link>
-
-            <div className="mt-8 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-primary">
-                {isInvestor ? <Briefcase className="h-3 w-3" /> : <Rocket className="h-3 w-3" />}
-                {isInvestor ? "Investor" : "Startup"}
-              </span>
-              <button
-                onClick={switchRole}
-                type="button"
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                Switch role
-              </button>
-            </div>
-
-            <h1 className="mt-3 font-display text-3xl font-bold tracking-tight md:text-4xl">
-              {isSignup ? "Create your account" : "Welcome back"}
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 px-6 pb-16 md:grid-cols-2 md:px-10 md:pt-8">
+        {/* LEFT — Illustration */}
+        <div className="hidden flex-col justify-between rounded-3xl bg-gradient-to-b from-muted/40 to-background p-10 md:flex">
+          <div>
+            <h1 className="font-display text-4xl font-bold tracking-tight">
+              {isSignup ? "Hi, Get started" : "Hi, Welcome back"}
             </h1>
+            <p className="mt-3 text-base text-muted-foreground">
+              {isInvestor
+                ? "Discover high-potential startups with intelligent matchmaking."
+                : "More effectively with optimized workflows."}
+            </p>
+          </div>
+
+          <div className="my-10 flex items-center justify-center">
+            <IllustrationDashboard />
+          </div>
+
+          <div className="flex items-center justify-center gap-8 opacity-60 grayscale">
+            <Logo>chase</Logo>
+            <Logo>monday</Logo>
+            <Logo>airbnb</Logo>
+            <Logo>stripe</Logo>
+            <Logo>notion</Logo>
+          </div>
+        </div>
+
+        {/* RIGHT — Form */}
+        <div className="flex items-center justify-center px-2 py-6 md:px-10">
+          <div className="w-full max-w-md">
+            <h2 className="font-display text-2xl font-bold tracking-tight">
+              {isSignup ? "Create your account" : "Sign in to your account"}
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {isSignup
-                ? `Join Ventura as ${isInvestor ? "an investor" : "a founder"}.`
-                : "Sign in to continue to your dashboard."}
+              {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+              <button
+                type="button"
+                onClick={switchMode}
+                className="font-semibold text-emerald-600 hover:text-emerald-700"
+              >
+                {isSignup ? "Sign in" : "Get started"}
+              </button>
             </p>
 
-            <form onSubmit={submit} className="mt-8 space-y-4">
+            <form onSubmit={submit} className="mt-8 space-y-5">
               {isSignup && (
                 <>
-                  <Field label="Full name" value={name} onChange={setName} placeholder="Ada Lovelace" required />
-                  <Field
+                  <FloatField label="Full name" value={name} onChange={setName} placeholder="Ada Lovelace" required />
+                  <FloatField
                     label={isInvestor ? "Firm (optional)" : "Startup name (optional)"}
                     value={company}
                     onChange={setCompany}
@@ -125,66 +155,82 @@ function AuthPage() {
                   />
                 </>
               )}
-              <Field label="Email" value={email} onChange={setEmail} placeholder="you@company.com" type="email" required />
-              <Field label="Password" value={password} onChange={setPassword} placeholder="••••••••" type="password" required />
+
+              <FloatField
+                label="Email address"
+                value={email}
+                onChange={setEmail}
+                type="email"
+                required
+              />
 
               {!isSignup && (
-                <div className="flex justify-end">
-                  <button type="button" className="text-xs font-medium text-muted-foreground hover:text-primary">
+                <div className="flex justify-end -mb-2">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                  >
                     Forgot password?
                   </button>
                 </div>
               )}
 
+              <FloatField
+                label="Password"
+                value={password}
+                onChange={setPassword}
+                type={showPwd ? "text" : "password"}
+                placeholder="6+ characters"
+                required
+                trailing={
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((s) => !s)}
+                    aria-label={showPwd ? "Hide password" : "Show password"}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+
               <button
                 type="submit"
                 disabled={loading}
-                className={`group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${accent} px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow disabled:opacity-60`}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-foreground text-sm font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-60"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>
-                  {isSignup ? "Create account" : "Sign in"}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </>}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSignup ? "Create account" : "Sign in"}
               </button>
-            </form>
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              {isSignup ? "Already have an account?" : "New to Ventura?"}{" "}
-              <button onClick={switchMode} className="font-semibold text-foreground hover:text-primary">
-                {isSignup ? "Sign in" : "Create one"}
-              </button>
-            </p>
-          </div>
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-dashed border-border" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-background px-3 text-xs font-semibold tracking-wider text-muted-foreground">
+                    OR
+                  </span>
+                </div>
+              </div>
 
-          {/* RIGHT — Promo */}
-          <div className={`relative hidden overflow-hidden bg-gradient-to-br ${accent} p-12 text-primary-foreground md:flex md:flex-col md:justify-center`}>
-            <div className="absolute -left-10 top-10 h-48 w-48 rounded-full bg-white/20 blur-3xl animate-float-slow" />
-            <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-white/10 blur-3xl animate-float-slow" style={{ animationDelay: "2s" }} />
-            <div className="relative">
-              <h2 className="font-display text-4xl font-bold leading-tight">
-                {isSignup
-                  ? (isInvestor ? "Discover your next breakout investment." : "Raise capital from investors who get it.")
-                  : (isInvestor ? "Welcome back, partner." : "Your next round starts here.")}
-              </h2>
-              <p className="mt-4 text-base opacity-90">
-                {isInvestor
-                  ? "AI-curated deal flow, founder DMs, and live traction analytics — all in one ecosystem."
-                  : "Showcase your traction, get warm intros, and close your round faster."}
+              <div className="flex items-center justify-center gap-6">
+                <SocialBtn label="Google" onClick={() => oauth("google")}>
+                  <GoogleIcon />
+                </SocialBtn>
+                <SocialBtn label="GitHub" onClick={() => oauth("github")}>
+                  <GitHubIcon />
+                </SocialBtn>
+                <SocialBtn label="X" onClick={() => toast.message("X login coming soon")}>
+                  <XIcon />
+                </SocialBtn>
+              </div>
+
+              <p className="pt-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+                By continuing, you agree to Ventura's{" "}
+                <a className="underline hover:text-foreground" href="#">Terms of Service</a> and{" "}
+                <a className="underline hover:text-foreground" href="#">Privacy Policy</a>.
               </p>
-
-              <div className="mt-10 grid grid-cols-3 gap-4">
-                <Stat label={isInvestor ? "Active deals" : "Investors"} value="1,250+" />
-                <Stat label="Capital raised" value="$840M" />
-                <Stat label="Verified" value="100%" />
-              </div>
-
-              <div className="mt-10 rounded-2xl bg-white/10 p-5 backdrop-blur-md">
-                <p className="text-sm italic opacity-90">
-                  “Ventura gave us our lead investor in 9 days. The match quality is unreal.”
-                </p>
-                <div className="mt-3 text-xs font-semibold opacity-80">— Maya R., Founder · Helix Bio</div>
-              </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
@@ -192,47 +238,110 @@ function AuthPage() {
   );
 }
 
-function Field({
-  label, value, onChange, placeholder, type = "text", required,
+/* ---------- Field with floating label ---------- */
+function FloatField({
+  label, value, onChange, placeholder, type = "text", required, trailing,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string; required?: boolean;
+  placeholder?: string; type?: string; required?: boolean; trailing?: React.ReactNode;
 }) {
-  const isPassword = type === "password";
-  const [show, setShow] = useState(false);
-  const inputType = isPassword ? (show ? "text" : "password") : type;
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
-      <div className="relative">
-        <input
-          type={inputType}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          required={required}
-          className={`w-full rounded-xl border border-border bg-background px-4 py-3 text-sm transition-smooth placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 ${isPassword ? "pr-11" : ""}`}
-        />
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setShow((s) => !s)}
-            aria-label={show ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-smooth hover:text-foreground"
-          >
-            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        )}
-      </div>
-    </label>
+    <div className="relative">
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? " "}
+        required={required}
+        className={`peer h-14 w-full rounded-lg border border-border bg-background px-4 pt-4 text-sm transition-colors placeholder:text-muted-foreground/50 focus:border-foreground focus:outline-none ${trailing ? "pr-11" : ""}`}
+      />
+      <label className="pointer-events-none absolute left-4 top-2 text-[11px] font-medium text-muted-foreground">
+        {label}
+      </label>
+      {trailing && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">{trailing}</div>
+      )}
+    </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function SocialBtn({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <div>
-      <div className="font-display text-2xl font-bold">{value}</div>
-      <div className="text-xs opacity-80">{label}</div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-muted"
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ---------- Icons ---------- */
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="h-6 w-6">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z"/>
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.5 24 4.5 16.3 4.5 9.7 8.6 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 43.5c5.2 0 9.9-2 13.4-5.3l-6.2-5.1c-2 1.4-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.2-7.9l-6.5 5C9.6 39.4 16.2 43.5 24 43.5z"/>
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4.1 5.6l6.2 5.1c-.4.4 6.6-4.8 6.6-14.7 0-1.2-.1-2.4-.4-3.5z"/>
+    </svg>
+  );
+}
+function GitHubIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6 fill-foreground">
+      <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.07.78 2.16v3.2c0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+    </svg>
+  );
+}
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-foreground">
+      <path d="M18.244 2H21.5l-7.5 8.57L23 22h-6.844l-5.36-7.01L4.5 22H1.24l8.02-9.16L1 2h6.92l4.84 6.39L18.244 2zm-2.4 18h1.86L7.24 4H5.28l10.564 16z"/>
+    </svg>
+  );
+}
+
+function Logo({ children }: { children: React.ReactNode }) {
+  return <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</span>;
+}
+
+/* ---------- Decorative illustration ---------- */
+function IllustrationDashboard() {
+  return (
+    <svg viewBox="0 0 360 280" className="h-64 w-full max-w-md">
+      <defs>
+        <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stopColor="#3aa6ff" />
+          <stop offset="1" stopColor="#0a72c9" />
+        </linearGradient>
+      </defs>
+      {/* big card */}
+      <rect x="20" y="40" width="220" height="160" rx="14" fill="hsl(var(--card))" stroke="hsl(var(--border))" />
+      <circle cx="36" cy="56" r="3" fill="#ff6b6b" />
+      <circle cx="46" cy="56" r="3" fill="#ffd93d" />
+      <circle cx="56" cy="56" r="3" fill="#6bcB77" />
+      <rect x="34" y="74" width="120" height="6" rx="3" fill="hsl(var(--muted))" />
+      {/* phone */}
+      <rect x="40" y="100" width="110" height="90" rx="10" fill="url(#g1)" />
+      <path d="M55 170 q20 -40 40 -20 t40 -10" stroke="white" strokeWidth="3" fill="none" />
+      <rect x="80" y="180" width="30" height="3" rx="1.5" fill="white" opacity=".8" />
+      {/* image card */}
+      <rect x="170" y="100" width="60" height="46" rx="6" fill="hsl(var(--muted))" />
+      <circle cx="186" cy="118" r="6" fill="#ffd93d" />
+      <path d="M178 138 l8 -10 l8 8 l10 -14 l8 16 z" fill="#6bcB77" />
+      {/* pencil */}
+      <rect x="240" y="110" width="60" height="10" rx="2" fill="#ffb84d" transform="rotate(45 270 115)" />
+      {/* pie */}
+      <circle cx="200" cy="200" r="28" fill="#ef4444" />
+      <path d="M200 172 A28 28 0 0 1 228 200 L200 200 Z" fill="#22c55e" />
+      <path d="M228 200 A28 28 0 0 1 200 228 L200 200 Z" fill="#3b82f6" />
+      <path d="M200 228 A28 28 0 0 1 172 200 L200 200 Z" fill="#facc15" />
+      {/* hand */}
+      <circle cx="50" cy="220" r="14" fill="#34d399" />
+      <rect x="56" y="200" width="14" height="22" rx="6" fill="#fcd5b5" />
+    </svg>
   );
 }
