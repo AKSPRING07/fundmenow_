@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Sparkles, Rocket, Briefcase, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Rocket, Briefcase, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -198,17 +198,32 @@ function Field({
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string; required?: boolean;
 }) {
+  const isPassword = type === "password";
+  const [show, setShow] = useState(false);
+  const inputType = isPassword ? (show ? "text" : "password") : type;
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm transition-smooth placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-      />
+      <div className="relative">
+        <input
+          type={inputType}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          className={`w-full rounded-xl border border-border bg-background px-4 py-3 text-sm transition-smooth placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 ${isPassword ? "pr-11" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition-smooth hover:text-foreground"
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </label>
   );
 }
