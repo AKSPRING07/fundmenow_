@@ -429,9 +429,9 @@ function InvestorCard({ i, saved, onSave }: { i: Investor; saved: boolean; onSav
       </div>
 
       <div className="mt-5 flex gap-2">
-        <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+        <Link to="/request/$investorId" params={{ investorId: i.id }} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
           Request intro <ArrowUpRight className="h-3 w-3" />
-        </button>
+        </Link>
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
         </button>
