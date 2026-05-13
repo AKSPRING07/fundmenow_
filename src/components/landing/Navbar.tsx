@@ -55,12 +55,19 @@ export function Navbar() {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            <button className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-smooth hover:bg-accent">
+            <Link
+              to="/auth"
+              search={{ role: "startup", mode: "signin" }}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-smooth hover:bg-accent"
+            >
               Login
-            </button>
-            <button className="group relative overflow-hidden rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+            </Link>
+            <Link
+              to="/role-select"
+              className="group relative overflow-hidden rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow"
+            >
               Get Started
-            </button>
+            </Link>
           </div>
 
           <button
