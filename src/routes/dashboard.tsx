@@ -4,8 +4,14 @@ import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
+  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
+
+type IntroRequest = Database["public"]["Tables"]["intro_requests"]["Row"];
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
