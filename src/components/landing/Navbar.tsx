@@ -93,12 +93,12 @@ export function Navbar() {
                 </a>
               ))}
               <div className="mt-2 flex gap-2 border-t border-border pt-3">
-                <button className="flex-1 rounded-lg border border-border px-4 py-2 text-sm font-medium">
+                <Link to="/auth" search={{ role: "startup", mode: "signin" }} onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium">
                   Login
-                </button>
-                <button className="flex-1 rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                </Link>
+                <Link to="/role-select" onClick={() => setOpen(false)} className="flex-1 rounded-lg bg-gradient-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">
                   Get Started
-                </button>
+                </Link>
               </div>
             </nav>
           </div>
