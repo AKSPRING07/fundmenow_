@@ -22,9 +22,10 @@ type Tab = "dashboard" | "for-you" | "discover" | "saved" | "connections" | "pre
 function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("for-you");
+  const [tab, setTab] = useState<Tab>("dashboard");
   const [search, setSearch] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [requestingInvestor, setRequestingInvestor] = useState<Investor | null>(null);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: { role: "startup", mode: "signin" } });
@@ -137,33 +138,54 @@ function DashboardPage() {
         </header>
 
         <main className="px-4 py-8 md:px-8">
-          {tab === "for-you" || tab === "dashboard" ? (
+          {tab === "dashboard" ? (
             <ForYou
               isInvestor={isInvestor}
               search={search}
               savedIds={savedIds}
               onToggleSave={toggleSave}
+              onRequestIntro={setRequestingInvestor}
             />
           ) : tab === "discover" ? (
-            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} />
+            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingInvestor} />
           ) : tab === "saved" ? (
-            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} />
+            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingInvestor} />
           ) : tab === "connections" ? (
-            <Connections />
+            <Connections isInvestor={isInvestor} />
           ) : tab === "notifications" ? (
             <EmptyState icon={Bell} title="No new notifications" desc="You'll see intro requests, matches, and event invites here." />
           ) : (
-            <Settings_ profile={profile} />
+            <Settings_ profile={profile} user={user} />
           )}
         </main>
       </div>
+
+      {requestingInvestor && (
+        <IntroRequestModal 
+          investor={requestingInvestor} 
+          onClose={() => setRequestingInvestor(null)} 
+          onSubmit={(data) => {
+            const reqs = getIntroReqs();
+            reqs.push({
+              id: Math.random().toString(36).slice(2),
+              investorId: requestingInvestor.id,
+              investorName: requestingInvestor.firm,
+              investorFocus: requestingInvestor.focus,
+              status: 'pending',
+              date: new Date().toISOString(),
+              ...data
+            });
+            saveIntroReqs(reqs);
+            setRequestingInvestor(null);
+          }} 
+        />
+      )}
     </div>
   );
 }
 
 const STARTUP_NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
   { id: "connections", label: "Connections", icon: Users },
@@ -174,7 +196,6 @@ const STARTUP_NAV = [
 
 const INVESTOR_NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
   { id: "connections", label: "Connections", icon: Users },
@@ -206,25 +227,54 @@ const INVESTORS: Investor[] = [
 
 // ============ SECTIONS ============
 function ForYou({
-  isInvestor, search, savedIds, onToggleSave,
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro
 }: {
-  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void;
+  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void;
 }) {
+  const [profileDomain, setProfileDomain] = useState("");
+
+  useEffect(() => {
+    const loadDomain = () => {
+      try {
+        const key = isInvestor ? "investorProfile" : "startupProfile";
+        const saved = localStorage.getItem(key);
+        if (saved) {
+          const data = JSON.parse(saved);
+          setProfileDomain(data.domain || "");
+        }
+      } catch {}
+    };
+    loadDomain();
+    window.addEventListener('profileUpdated', loadDomain);
+    return () => window.removeEventListener('profileUpdated', loadDomain);
+  }, [isInvestor]);
+
   const items = useMemo(() => {
     const list = isInvestor ? STARTUPS : INVESTORS;
     const q = search.trim().toLowerCase();
-    if (!q) return list;
+    
+    let filteredList = list;
+    if (profileDomain && !q) {
+      const pDomain = profileDomain.toLowerCase();
+      filteredList = list.filter((x: any) => {
+        const target = isInvestor ? x.sector : x.focus;
+        return target && target.toLowerCase().includes(pDomain);
+      });
+      if (filteredList.length === 0) filteredList = list;
+    }
+
+    if (!q) return filteredList;
     return list.filter((x: any) =>
       [x.name, x.sector, x.focus, x.stage, x.firm].filter(Boolean).join(" ").toLowerCase().includes(q)
     );
-  }, [isInvestor, search]);
+  }, [isInvestor, search, profileDomain]);
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-            For you
+            Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isInvestor ? "AI-curated startups matched to your thesis." : "Investors most likely to back your round."}
@@ -250,7 +300,7 @@ function ForYou({
         {items.map((it: any) =>
           isInvestor
             ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} />
-            : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} />
+            : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
         )}
       </div>
     </div>
@@ -258,8 +308,8 @@ function ForYou({
 }
 
 function Discover({
-  isInvestor, search, savedIds, onToggleSave,
-}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; }) {
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro
+}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; }) {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Discover</h1>
@@ -276,15 +326,15 @@ function Discover({
       </div>
 
       <div className="mt-6">
-        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} />
+        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} />
       </div>
     </div>
   );
 }
 
 function Saved({
-  isInvestor, savedIds, onToggleSave,
-}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; }) {
+  isInvestor, savedIds, onToggleSave, onRequestIntro
+}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; }) {
   const list = (isInvestor ? STARTUPS : INVESTORS).filter((x) => savedIds.has(x.id));
 
   return (
@@ -301,7 +351,7 @@ function Saved({
           {list.map((it: any) =>
             isInvestor
               ? <StartupCard key={it.id} s={it} saved onSave={() => onToggleSave(it.id)} />
-              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} />
+              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
           )}
         </div>
       )}
@@ -309,8 +359,34 @@ function Saved({
   );
 }
 
-function Connections() {
-  const [tab, setTab] = useState<"pending" | "active" | "archived">("active");
+function Connections({ isInvestor }: { isInvestor: boolean }) {
+  const [tab, setTab] = useState<"pending" | "active" | "archived">("pending");
+  const [reqs, setReqs] = useState<IntroRequest[]>([]);
+  const [actionModal, setActionModal] = useState<{ req: IntroRequest; action: 'accepted' | 'rejected' } | null>(null);
+  const [actionReason, setActionReason] = useState("");
+
+  useEffect(() => {
+    setReqs(getIntroReqs());
+    const handler = () => setReqs(getIntroReqs());
+    window.addEventListener('reqsUpdated', handler);
+    return () => window.removeEventListener('reqsUpdated', handler);
+  }, []);
+
+  const filtered = reqs.filter(r => {
+    if (tab === 'pending') return r.status === 'pending';
+    if (tab === 'active') return r.status === 'accepted';
+    if (tab === 'archived') return r.status === 'rejected';
+    return false;
+  });
+
+  const handleActionSubmit = () => {
+    if (!actionModal) return;
+    const updated = reqs.map(r => r.id === actionModal.req.id ? { ...r, status: actionModal.action, actionReason } : r);
+    saveIntroReqs(updated);
+    setActionModal(null);
+    setActionReason("");
+  };
+
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Connections</h1>
@@ -330,24 +406,145 @@ function Connections() {
         ))}
       </div>
 
-      <div className="mt-8">
-        <EmptyState icon={Users} title={`No ${tab} connections`} desc="Once you request or accept an intro, it'll show up here." />
+      <div className="mt-8 space-y-4">
+        {filtered.length === 0 ? (
+          <EmptyState icon={Users} title={`No ${tab} connections`} desc="Once you request or accept an intro, it'll show up here." />
+        ) : (
+          filtered.map(r => (
+            <div key={r.id} className={`rounded-2xl border bg-card p-5 shadow-card flex flex-col md:flex-row gap-4 justify-between items-start ${r.status === 'accepted' ? 'border-success/50' : r.status === 'rejected' ? 'border-destructive/50' : 'border-border'}`}>
+              <div>
+                <div className="font-display text-lg font-bold flex items-center gap-2">
+                  {isInvestor ? r.companyName : r.investorName}
+                  {r.status === 'accepted' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-success text-[10px] text-white">✓</span>}
+                  {r.status === 'rejected' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">✕</span>}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {isInvestor ? `Asking: ${r.expected}` : `Focus: ${r.investorFocus}`}
+                </div>
+                <div className="mt-3 text-sm">{r.reason}</div>
+                {r.actionReason && (
+                  <div className={`mt-3 text-xs font-semibold p-2 rounded-lg ${r.status === 'accepted' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                    {r.status === 'accepted' ? 'Accepted' : 'Rejected'}: {r.actionReason}
+                  </div>
+                )}
+              </div>
+
+              {isInvestor && r.status === 'pending' && (
+                <div className="flex gap-2">
+                  <button onClick={() => setActionModal({ req: r, action: 'accepted' })} className="rounded-lg bg-success px-4 py-2 text-xs font-semibold text-white transition-smooth hover:bg-success/80">Accept</button>
+                  <button onClick={() => setActionModal({ req: r, action: 'rejected' })} className="rounded-lg bg-destructive px-4 py-2 text-xs font-semibold text-white transition-smooth hover:bg-destructive/80">Reject</button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
+
+      {actionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-background p-6 shadow-2xl">
+            <h2 className="font-display text-xl font-bold mb-2">Reason to {actionModal.action === 'accepted' ? 'Accept' : 'Reject'}</h2>
+            <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={3} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="Provide a reason..." />
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setActionModal(null)} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground border border-border hover:bg-accent">Cancel</button>
+              <button onClick={handleActionSubmit} className="rounded-lg bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow">Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Settings_({ profile }: { profile: any }) {
+function Settings_({ profile, user }: { profile: any; user: any }) {
+  const isInvestor = profile.role === "investor";
+  const storageKey = isInvestor ? "investorProfile" : "startupProfile";
+  
+  const defaultData = {
+    companyName: profile.company_name || "",
+    companyLogo: profile.avatar_url || "",
+    domain: "",
+    reason: "",
+    expectedFunding: "",
+    mobile: "",
+    email: user?.email || "",
+    website: "",
+  };
+
+  const [formData, setFormData] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return { ...defaultData, ...JSON.parse(saved) };
+    } catch {}
+    return defaultData;
+  });
+
+  const [savedMsg, setSavedMsg] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem(storageKey, JSON.stringify(formData));
+    setSavedMsg("Profile saved successfully!");
+    setTimeout(() => setSavedMsg(""), 3000);
+    window.dispatchEvent(new Event('profileUpdated'));
+  };
+
   return (
     <div className="max-w-2xl">
-      <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Settings</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Profile and account preferences.</p>
+      <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+        {isInvestor ? "Investor Profile" : "Startup Profile"}
+      </h1>
+      <p className="mt-1 text-sm text-muted-foreground">Update your details to find better matches.</p>
 
-      <div className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6">
-        <Row label="Full name" value={profile.full_name ?? "—"} />
-        <Row label="Role" value={profile.role} />
-        <Row label={profile.role === "investor" ? "Firm" : "Startup"} value={profile.company_name ?? "—"} />
-      </div>
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6">
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
+            <input name="companyName" value={formData.companyName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Company Logo URL</label>
+            <input name="companyLogo" value={formData.companyLogo} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Domain / Sector (e.g. AI, Fintech)</label>
+            <input name="domain" value={formData.domain} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Reason for Investors</label>
+            <textarea name="reason" value={formData.reason} onChange={handleChange} rows={3} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">{isInvestor ? "Ticket Size" : "Expected Funding"}</label>
+            <input name="expectedFunding" value={formData.expectedFunding} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Mobile No</label>
+              <input name="mobile" value={formData.mobile} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Email ID</label>
+              <input name="email" value={formData.email} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase">Website</label>
+            <input name="website" value={formData.website} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          </div>
+        </div>
+        
+        <div className="pt-4 flex items-center justify-between">
+          <button type="submit" className="rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
+            Save Profile
+          </button>
+          {savedMsg && <span className="text-sm font-medium text-success">{savedMsg}</span>}
+        </div>
+      </form>
     </div>
   );
 }
@@ -393,7 +590,7 @@ function StartupCard({ s, saved, onSave }: { s: Startup; saved: boolean; onSave:
   );
 }
 
-function InvestorCard({ i, saved, onSave }: { i: Investor; saved: boolean; onSave: () => void }) {
+function InvestorCard({ i, saved, onSave, onRequestIntro }: { i: Investor; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant">
       <div className="flex items-start justify-between">
@@ -419,7 +616,7 @@ function InvestorCard({ i, saved, onSave }: { i: Investor; saved: boolean; onSav
       </div>
 
       <div className="mt-5 flex gap-2">
-        <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+        <button onClick={onRequestIntro} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
           Request intro <ArrowUpRight className="h-3 w-3" />
         </button>
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
@@ -459,3 +656,85 @@ function EmptyState({ icon: Icon, title, desc }: { icon: any; title: string; des
     </div>
   );
 }
+
+function IntroRequestModal({ investor, onClose, onSubmit }: { investor: Investor; onClose: () => void; onSubmit: (data: any) => void }) {
+  const [formData, setFormData] = useState({ companyName: '', logo: '', address: '', reason: '', expected: '' });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-background shadow-2xl flex flex-col md:flex-row">
+        <div className="bg-muted p-8 md:w-1/3 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-border">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-navy font-display text-2xl font-bold text-navy-foreground mb-4">{investor.initials}</div>
+          <h2 className="font-display text-xl font-bold">{investor.firm}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{investor.focus}</p>
+          <div className="mt-6 w-full rounded-xl bg-background p-4 text-left shadow-sm">
+            <div className="text-xs text-muted-foreground mb-1">Ticket Size</div>
+            <div className="font-semibold text-sm mb-3">{investor.ticket}</div>
+            <div className="text-xs text-muted-foreground mb-1">Portfolio</div>
+            <div className="font-semibold text-sm">{investor.portfolio} cos.</div>
+          </div>
+        </div>
+
+        <div className="p-8 md:w-2/3">
+          <h2 className="font-display text-2xl font-bold mb-1">Request Intro</h2>
+          <p className="text-sm text-muted-foreground mb-6">Fill in your details to request an intro with this investor.</p>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
+                <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Logo URL</label>
+                <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Address</label>
+              <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Reason for Intro</label>
+              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Expected Funding</label>
+              <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-end gap-3">
+            <button onClick={() => setFormData({ companyName: '', logo: '', address: '', reason: '', expected: '' })} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">Clear</button>
+            <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground border border-border hover:bg-muted">Cancel</button>
+            <button onClick={() => onSubmit(formData)} className="rounded-lg bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow">Send Request</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type IntroRequest = {
+  id: string;
+  investorId: string;
+  investorName: string;
+  investorFocus: string;
+  companyName: string;
+  logo: string;
+  address: string;
+  reason: string;
+  expected: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  actionReason?: string;
+  date: string;
+};
+
+const getIntroReqs = (): IntroRequest[] => {
+  try { return JSON.parse(localStorage.getItem('introReqs') || '[]'); } catch { return []; }
+};
+const saveIntroReqs = (r: IntroRequest[]) => {
+  localStorage.setItem('introReqs', JSON.stringify(r));
+  window.dispatchEvent(new Event('reqsUpdated'));
+};
+
