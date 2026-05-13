@@ -64,13 +64,19 @@ export function Hero() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <button className="group inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow hover:-translate-y-0.5">
+            <Link
+              to="/role-select"
+              className="group inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow hover:-translate-y-0.5"
+            >
               Raise Capital
               <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground shadow-card transition-smooth hover:border-primary/40 hover:-translate-y-0.5">
+            </Link>
+            <Link
+              to="/role-select"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3.5 text-sm font-semibold text-foreground shadow-card transition-smooth hover:border-primary/40 hover:-translate-y-0.5"
+            >
               Discover Startups
-            </button>
+            </Link>
           </div>
 
           <div className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-8">
