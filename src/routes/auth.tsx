@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Sparkles, Rocket, Briefcase, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, Rocket, Briefcase, Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
