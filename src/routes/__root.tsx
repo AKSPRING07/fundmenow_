@@ -73,14 +73,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "FundMeNow" },
+      { name: "description", content: "Venture Nexus connects ambitious founders with investors in a premium startup ecosystem." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "FundMeNow" },
+      { property: "og:description", content: "Venture Nexus connects ambitious founders with investors in a premium startup ecosystem." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "FundMeNow" },
+      { name: "twitter:description", content: "Venture Nexus connects ambitious founders with investors in a premium startup ecosystem." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2fd7391d-b058-4907-837d-82d7279de255/id-preview-6b34cb8c--1a378a97-52b6-47cc-852c-1ea95f3b3c30.lovable.app-1778658210411.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/2fd7391d-b058-4907-837d-82d7279de255/id-preview-6b34cb8c--1a378a97-52b6-47cc-852c-1ea95f3b3c30.lovable.app-1778658210411.png" },
     ],
     links: [
       {
