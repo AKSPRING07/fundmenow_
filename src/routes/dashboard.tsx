@@ -154,6 +154,8 @@ function DashboardPage() {
             <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} />
           ) : tab === "saved" ? (
             <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} />
+          ) : tab === "requests" ? (
+            <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "connections" ? (
             <Connections />
           ) : tab === "notifications" ? (
@@ -172,6 +174,7 @@ const STARTUP_NAV = [
   { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
+  { id: "requests", label: "My Requests", icon: Inbox },
   { id: "connections", label: "Connections", icon: Users },
   { id: "preferences", label: "My Startup Profile", icon: Settings },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -183,6 +186,7 @@ const INVESTOR_NAV = [
   { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
+  { id: "requests", label: "Requests", icon: Inbox },
   { id: "connections", label: "Connections", icon: Users },
   { id: "preferences", label: "My Preferences", icon: Settings },
   { id: "notifications", label: "Notifications", icon: Bell },
