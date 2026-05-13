@@ -8,78 +8,78 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as RoleSelectRouteImport } from './routes/role-select'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as RequestInvestorIdRouteImport } from './routes/request.$investorId'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as RoleSelectRouteImport } from "./routes/role-select"
+import { Route as DashboardRouteImport } from "./routes/dashboard"
+import { Route as AuthRouteImport } from "./routes/auth"
+import { Route as IndexRouteImport } from "./routes/index"
+import { Route as RequestInvestorIdRouteImport } from "./routes/request.$investorId"
 
 const RoleSelectRoute = RoleSelectRouteImport.update({
-  id: '/role-select',
-  path: '/role-select',
+  id: "/role-select",
+  path: "/role-select",
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+  id: "/dashboard",
+  path: "/dashboard",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+  id: "/auth",
+  path: "/auth",
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestInvestorIdRoute = RequestInvestorIdRouteImport.update({
-  id: '/request/$investorId',
-  path: '/request/$investorId',
+  id: "/request/$investorId",
+  path: "/request/$investorId",
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/dashboard': typeof DashboardRoute
-  '/role-select': typeof RoleSelectRoute
-  '/request/$investorId': typeof RequestInvestorIdRoute
+  "/": typeof IndexRoute
+  "/auth": typeof AuthRoute
+  "/dashboard": typeof DashboardRoute
+  "/role-select": typeof RoleSelectRoute
+  "/request/$investorId": typeof RequestInvestorIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/dashboard': typeof DashboardRoute
-  '/role-select': typeof RoleSelectRoute
-  '/request/$investorId': typeof RequestInvestorIdRoute
+  "/": typeof IndexRoute
+  "/auth": typeof AuthRoute
+  "/dashboard": typeof DashboardRoute
+  "/role-select": typeof RoleSelectRoute
+  "/request/$investorId": typeof RequestInvestorIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/dashboard': typeof DashboardRoute
-  '/role-select': typeof RoleSelectRoute
-  '/request/$investorId': typeof RequestInvestorIdRoute
+  "/": typeof IndexRoute
+  "/auth": typeof AuthRoute
+  "/dashboard": typeof DashboardRoute
+  "/role-select": typeof RoleSelectRoute
+  "/request/$investorId": typeof RequestInvestorIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/auth'
-    | '/dashboard'
-    | '/role-select'
-    | '/request/$investorId'
+    | "/"
+    | "/auth"
+    | "/dashboard"
+    | "/role-select"
+    | "/request/$investorId"
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/role-select' | '/request/$investorId'
+  to: "/" | "/auth" | "/dashboard" | "/role-select" | "/request/$investorId"
   id:
-    | '__root__'
-    | '/'
-    | '/auth'
-    | '/dashboard'
-    | '/role-select'
-    | '/request/$investorId'
+    | "__root__"
+    | "/"
+    | "/auth"
+    | "/dashboard"
+    | "/role-select"
+    | "/request/$investorId"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -90,40 +90,40 @@ export interface RootRouteChildren {
   RequestInvestorIdRoute: typeof RequestInvestorIdRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/role-select': {
-      id: '/role-select'
-      path: '/role-select'
-      fullPath: '/role-select'
+    "/role-select": {
+      id: "/role-select"
+      path: "/role-select"
+      fullPath: "/role-select"
       preLoaderRoute: typeof RoleSelectRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
+    "/dashboard": {
+      id: "/dashboard"
+      path: "/dashboard"
+      fullPath: "/dashboard"
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
+    "/auth": {
+      id: "/auth"
+      path: "/auth"
+      fullPath: "/auth"
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/request/$investorId': {
-      id: '/request/$investorId'
-      path: '/request/$investorId'
-      fullPath: '/request/$investorId'
+    "/request/$investorId": {
+      id: "/request/$investorId"
+      path: "/request/$investorId"
+      fullPath: "/request/$investorId"
       preLoaderRoute: typeof RequestInvestorIdRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -140,13 +140,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
