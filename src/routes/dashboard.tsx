@@ -4,8 +4,14 @@ import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
+  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
+
+type IntroRequest = Database["public"]["Tables"]["intro_requests"]["Row"];
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -17,7 +23,7 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-type Tab = "dashboard" | "for-you" | "discover" | "saved" | "connections" | "preferences" | "notifications" | "settings";
+type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings";
 
 function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth();
@@ -148,6 +154,8 @@ function DashboardPage() {
             <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} />
           ) : tab === "saved" ? (
             <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} />
+          ) : tab === "requests" ? (
+            <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "connections" ? (
             <Connections />
           ) : tab === "notifications" ? (
@@ -166,6 +174,7 @@ const STARTUP_NAV = [
   { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
+  { id: "requests", label: "My Requests", icon: Inbox },
   { id: "connections", label: "Connections", icon: Users },
   { id: "preferences", label: "My Startup Profile", icon: Settings },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -177,6 +186,7 @@ const INVESTOR_NAV = [
   { id: "for-you", label: "For You", icon: Sparkles },
   { id: "discover", label: "Discover", icon: Compass },
   { id: "saved", label: "Saved", icon: Bookmark },
+  { id: "requests", label: "Requests", icon: Inbox },
   { id: "connections", label: "Connections", icon: Users },
   { id: "preferences", label: "My Preferences", icon: Settings },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -419,9 +429,9 @@ function InvestorCard({ i, saved, onSave }: { i: Investor; saved: boolean; onSav
       </div>
 
       <div className="mt-5 flex gap-2">
-        <button className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+        <Link to="/request/$investorId" params={{ investorId: i.id }} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
           Request intro <ArrowUpRight className="h-3 w-3" />
-        </button>
+        </Link>
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
         </button>
@@ -456,6 +466,195 @@ function EmptyState({ icon: Icon, title, desc }: { icon: any; title: string; des
       <button className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-gradient-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
         <Plus className="h-3.5 w-3.5" /> Explore
       </button>
+    </div>
+  );
+}
+
+// ============ REQUESTS VIEW ============
+function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: string }) {
+  const [items, setItems] = useState<IntroRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const q = supabase.from("intro_requests").select("*").order("created_at", { ascending: false });
+      const { data, error } = isInvestor ? await q : await q.eq("startup_user_id", userId);
+      if (!active) return;
+      if (error) toast.error(error.message);
+      setItems((data ?? []) as IntroRequest[]);
+      setLoading(false);
+    };
+    load();
+
+    const channel = supabase
+      .channel("intro_requests_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "intro_requests" }, load)
+      .subscribe();
+
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [isInvestor, userId]);
+
+  const filtered = items.filter((r) => filter === "all" || r.status === filter);
+
+  return (
+    <div>
+      <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+        {isInvestor ? "Incoming requests" : "My requests"}
+      </h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {isInvestor
+          ? "Startups requesting an intro. Review and accept or reject each one."
+          : "Track the intros you've sent. Accepted requests turn green, rejected turn red."}
+      </p>
+
+      <div className="mt-6 inline-flex flex-wrap rounded-xl border border-border bg-card p-1">
+        {(["all", "pending", "accepted", "rejected"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition-smooth ${
+              filter === f ? "bg-gradient-primary text-primary-foreground shadow-elegant" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {f} {f !== "all" && `(${items.filter((i) => i.status === f).length})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="mt-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState icon={Inbox} title={`No ${filter === "all" ? "" : filter} requests`} desc={isInvestor ? "Once startups request intros, they'll appear here." : "Send your first intro request from Discover."} />
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4">
+          {filtered.map((r) => (
+            <RequestCard key={r.id} req={r} isInvestor={isInvestor} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RequestCard({ req, isInvestor }: { req: IntroRequest; isInvestor: boolean }) {
+  const [responding, setResponding] = useState<null | "accepted" | "rejected">(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const statusColor =
+    req.status === "accepted" ? "border-success bg-success/5"
+    : req.status === "rejected" ? "border-destructive bg-destructive/5"
+    : "border-border bg-card";
+
+  const StatusBadge = () => {
+    if (req.status === "accepted") return <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success"><CheckCircle2 className="h-3 w-3" /> Accepted</span>;
+    if (req.status === "rejected") return <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2.5 py-0.5 text-[11px] font-bold text-destructive"><XCircle className="h-3 w-3" /> Rejected</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-bold text-primary"><Clock className="h-3 w-3" /> Pending</span>;
+  };
+
+  const respond = async () => {
+    if (!responding) return;
+    if (!reason.trim()) { toast.error("Please add a short reason."); return; }
+    setBusy(true);
+    const { error } = await supabase
+      .from("intro_requests")
+      .update({ status: responding, response_reason: reason.trim().slice(0, 1000), responded_at: new Date().toISOString() })
+      .eq("id", req.id);
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Request ${responding}`);
+    setResponding(null);
+    setReason("");
+  };
+
+  return (
+    <div className={`overflow-hidden rounded-2xl border-2 ${statusColor} p-5 shadow-card transition-smooth`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {req.logo_url ? (
+            <img src={req.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">
+              <Building2 className="h-5 w-5" />
+            </div>
+          )}
+          <div>
+            <div className="font-display text-lg font-bold">{req.company_name}</div>
+            <div className="text-xs text-muted-foreground">
+              {isInvestor ? "→ requesting intro to you" : `→ ${req.investor_name}`}
+              {req.address && <> · {req.address}</>}
+            </div>
+          </div>
+        </div>
+        <StatusBadge />
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Detail label="Expected raise" value={req.expected_amount} />
+        <Detail label={isInvestor ? "Investor profile" : "Investor"} value={`${req.investor_name}${req.investor_focus ? ` · ${req.investor_focus}` : ""}`} />
+      </div>
+
+      <div className="mt-4">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reason</div>
+        <p className="mt-1 text-sm text-foreground/90">{req.reason}</p>
+      </div>
+
+      {req.response_reason && (
+        <div className={`mt-4 rounded-xl p-3 ${req.status === "accepted" ? "bg-success/10" : "bg-destructive/10"}`}>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+            <MessageSquare className="h-3 w-3" />
+            {req.status === "accepted" ? "Investor's note" : "Reason for rejection"}
+          </div>
+          <p className="mt-1 text-sm">{req.response_reason}</p>
+        </div>
+      )}
+
+      {isInvestor && req.status === "pending" && !responding && (
+        <div className="mt-5 flex gap-2">
+          <button onClick={() => setResponding("accepted")} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-success px-4 py-2.5 text-xs font-semibold text-white shadow-elegant transition-smooth hover:opacity-90">
+            <CheckCircle2 className="h-4 w-4" /> Select
+          </button>
+          <button onClick={() => setResponding("rejected")} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-destructive px-4 py-2.5 text-xs font-semibold text-destructive-foreground shadow-elegant transition-smooth hover:opacity-90">
+            <XCircle className="h-4 w-4" /> Reject
+          </button>
+        </div>
+      )}
+
+      {isInvestor && responding && (
+        <div className="mt-5 rounded-xl border border-border bg-background p-4">
+          <div className="text-xs font-semibold">
+            {responding === "accepted" ? "Reason for selecting" : "Reason for rejecting"} {req.company_name}
+          </div>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={1000}
+            rows={3}
+            placeholder={responding === "accepted" ? "Why this startup fits your thesis, next steps…" : "Polite, specific feedback for the founder…"}
+            className="mt-2 w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <div className="mt-3 flex justify-end gap-2">
+            <button onClick={() => { setResponding(null); setReason(""); }} disabled={busy} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">Cancel</button>
+            <button onClick={respond} disabled={busy} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold text-white shadow-elegant transition-smooth ${responding === "accepted" ? "bg-success" : "bg-destructive"} disabled:opacity-60`}>
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : responding === "accepted" ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+              Confirm {responding === "accepted" ? "select" : "reject"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-background/50 p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm font-semibold">{value}</div>
     </div>
   );
 }
