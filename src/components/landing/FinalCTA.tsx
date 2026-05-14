@@ -5,10 +5,18 @@ export function FinalCTA() {
   return (
     <section className="relative overflow-hidden py-24 md:py-32">
       <div className="mx-auto w-full max-w-7xl px-4">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-navy p-10 text-navy-foreground shadow-premium md:p-16">
-          <div className="absolute inset-0 bg-gradient-mesh opacity-60" />
-          <div className="absolute -left-10 top-10 h-48 w-48 rounded-full bg-primary-glow/40 blur-3xl animate-float-slow" />
-          <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-primary/40 blur-3xl animate-float-slow" style={{ animationDelay: "2s" }} />
+        <div className="relative overflow-hidden rounded-3xl bg-navy text-navy-foreground shadow-premium md:p-16 p-10">
+          {/* Background Image with Overlay */}
+          <img 
+            src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop" 
+            alt="Collaboration" 
+            className="absolute inset-0 h-full w-full object-cover opacity-20 transition-all duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-navy via-navy/95 to-primary/20" />
+          <div className="absolute inset-0 bg-gradient-mesh opacity-40" />
+          
+          <div className="absolute -left-10 top-10 h-48 w-48 rounded-full bg-primary-glow/30 blur-3xl animate-float-slow" />
+          <div className="absolute -right-10 bottom-10 h-56 w-56 rounded-full bg-primary/30 blur-3xl animate-float-slow" style={{ animationDelay: "2s" }} />
 
           <div className="relative mx-auto max-w-3xl text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">
