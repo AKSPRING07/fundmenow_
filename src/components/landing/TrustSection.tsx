@@ -10,6 +10,10 @@ const logos = [
   { name: "Tiger Global", domain: "tigerglobal.com" },
   { name: "Founders Fund", domain: "foundersfund.com" },
   { name: "Kleiner Perkins", domain: "kleinerperkins.com" },
+  { name: "Benchmark", domain: "benchmark.com" },
+  { name: "Greylock", domain: "greylock.com" },
+  { name: "Index Ventures", domain: "indexventures.com" },
+  { name: "Bessemer", domain: "bvp.com" },
 ];
 
 const testimonials = [
@@ -84,20 +88,25 @@ export function TrustSection() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Trusted by the world's most ambitious operators
           </p>
-          <div className="mx-auto mt-12 flex flex-wrap items-center justify-center gap-x-12 gap-y-8 opacity-50 grayscale transition-all hover:opacity-100 hover:grayscale-0 md:gap-x-16">
-            {logos.map((l) => (
-              <div key={l.name} className="flex items-center justify-center">
-                <img
-                  src={`https://logo.clearbit.com/${l.domain}`}
-                  alt={l.name}
-                  className="h-8 w-auto object-contain md:h-10"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="font-display text-sm font-bold text-muted-foreground">${l.name}</span>`;
-                  }}
-                />
-              </div>
-            ))}
+          <div className="relative mt-12 w-full overflow-hidden">
+            <Marquee className="[--duration:30s] [--gap:4rem] opacity-50 grayscale transition-all hover:opacity-100 hover:grayscale-0">
+              {logos.map((l) => (
+                <div key={l.name} className="flex items-center justify-center px-4">
+                  <img
+                    src={`https://logo.clearbit.com/${l.domain}`}
+                    alt={l.name}
+                    className="h-7 w-auto object-contain md:h-9"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                      (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="font-display text-sm font-bold text-muted-foreground">${l.name}</span>`;
+                    }}
+                  />
+                </div>
+              ))}
+            </Marquee>
+            {/* Gradients to fade edges of logos */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-1/6 bg-gradient-to-r from-card/40 to-transparent"></div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-1/6 bg-gradient-to-l from-card/40 to-transparent"></div>
           </div>
         </div>
 
