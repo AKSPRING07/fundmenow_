@@ -8,7 +8,8 @@ const events = [
     type: "Demo Day",
     speakers: 12,
     countdown: "12d : 04h",
-    color: "from-blue-500 to-indigo-600",
+    image: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?q=80&w=2070&auto=format&fit=crop",
+    overlay: "bg-blue-600/40",
   },
   {
     title: "AI Infra Masterclass",
@@ -17,7 +18,8 @@ const events = [
     type: "Masterclass",
     speakers: 4,
     countdown: "20d : 11h",
-    color: "from-violet-500 to-fuchsia-600",
+    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=2070&auto=format&fit=crop",
+    overlay: "bg-violet-600/40",
   },
   {
     title: "Investor Mixer · NYC",
@@ -26,7 +28,8 @@ const events = [
     type: "Networking",
     speakers: 8,
     countdown: "30d : 02h",
-    color: "from-emerald-500 to-teal-600",
+    image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2070&auto=format&fit=crop",
+    overlay: "bg-emerald-600/40",
   },
 ];
 
@@ -54,15 +57,21 @@ export function Events() {
               key={e.title}
               className="group overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-smooth hover:-translate-y-1.5 hover:shadow-elegant"
             >
-              <div className={`relative h-40 bg-gradient-to-br ${e.color} p-5`}>
-                <div className="absolute inset-0 grid-pattern opacity-20" />
-                <div className="relative flex h-full flex-col justify-between text-white">
-                  <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
+              <div className="relative h-44 overflow-hidden">
+                <img
+                  src={e.image}
+                  alt={e.title}
+                  className="absolute inset-0 h-full w-full object-cover transition-smooth group-hover:scale-110"
+                />
+                <div className={`absolute inset-0 ${e.overlay} backdrop-blur-[1px]`} />
+                <div className="absolute inset-0 grid-pattern opacity-10" />
+                <div className="relative flex h-full flex-col justify-between p-5 text-white">
+                  <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md">
                     {e.type}
                   </span>
                   <div>
-                    <div className="text-[11px] uppercase tracking-wider opacity-80">Starts in</div>
-                    <div className="font-display text-2xl font-bold tabular-nums">{e.countdown}</div>
+                    <div className="text-[11px] uppercase tracking-wider opacity-90">Starts in</div>
+                    <div className="font-display text-2xl font-bold tabular-nums drop-shadow-sm">{e.countdown}</div>
                   </div>
                 </div>
               </div>
