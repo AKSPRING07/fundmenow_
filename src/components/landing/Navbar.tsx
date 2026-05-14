@@ -54,19 +54,28 @@ export function Navbar() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-2 md:flex">
-            <Link
-              to="/auth"
-              search={{ role: "startup", mode: "signin" }}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-smooth hover:bg-accent"
-            >
-              Login
-            </Link>
+          <div className="hidden items-center gap-4 md:flex">
+            <div className="flex items-center gap-1 border-r border-border pr-4 mr-2">
+              <Link
+                to="/auth"
+                search={{ role: "investor", mode: "signin" }}
+                className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground transition-smooth hover:text-foreground"
+              >
+                Investor Login
+              </Link>
+              <Link
+                to="/auth"
+                search={{ role: "startup", mode: "signin" }}
+                className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground transition-smooth hover:text-foreground"
+              >
+                Startup Login
+              </Link>
+            </div>
             <Link
               to="/role-select"
-              className="group relative overflow-hidden rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow"
+              className="group relative overflow-hidden rounded-xl bg-gradient-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow"
             >
-              Get Started
+              Join Ventura
             </Link>
           </div>
 

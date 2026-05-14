@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
-  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare,
+  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare, Video
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,50 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings";
+type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings" | "startups";
+
+type Startup = { id: string; name: string; initials: string; sector: string; stage: string; location: string; ask: string; match: number };
+type Investor = { id: string; name: string; initials: string; firm: string; focus: string; ticket: string; stage: string; portfolio: number; match: number };
+
+const STARTUP_NAV = [
+  { id: "dashboard", label: "Fundraising Home", icon: LayoutDashboard },
+  { id: "startups", label: "Ecosystem Browse", icon: Building2 },
+  { id: "discover", label: "Find Investors", icon: Compass },
+  { id: "saved", label: "Shortlist", icon: Bookmark },
+  { id: "requests", label: "My Outreach", icon: Inbox },
+  { id: "connections", label: "Relationships", icon: Users },
+  { id: "preferences", label: "Startup Profile", icon: Settings },
+  { id: "notifications", label: "Alerts", icon: Bell },
+  { id: "settings", label: "Account Settings", icon: Settings },
+] as const;
+
+const INVESTOR_NAV = [
+  { id: "dashboard", label: "Deal Flow Home", icon: LayoutDashboard },
+  { id: "discover", label: "Sourcing Marketplace", icon: Compass },
+  { id: "saved", label: "Pipeline", icon: Bookmark },
+  { id: "requests", label: "Inbound Leads", icon: Inbox },
+  { id: "connections", label: "Portfolio Network", icon: Users },
+  { id: "preferences", label: "Investment Thesis", icon: Settings },
+  { id: "notifications", label: "Activity", icon: Bell },
+  { id: "settings", label: "Account Settings", icon: Settings },
+] as const;
+
+const STARTUPS: Startup[] = [
+  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96 },
+  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92 },
+  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88 },
+  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85 },
+  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81 },
+  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78 },
+];
+
+const INVESTORS: Investor[] = [
+  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95 },
+  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91 },
+  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87 },
+  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82 },
+  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76 },
+];
 
 function DashboardPage() {
   const { user, profile, loading, signOut } = useAuth();
@@ -31,7 +74,11 @@ function DashboardPage() {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [search, setSearch] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [isVerified, setIsVerified] = useState(() => {
+    return localStorage.getItem('isVerified') === 'true';
+  });
   const [requestingInvestor, setRequestingInvestor] = useState<Investor | null>(null);
+  const [showAddCompany, setShowAddCompany] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth", search: { role: "startup", mode: "signin" } });
@@ -89,7 +136,10 @@ function DashboardPage() {
         </nav>
 
         {/* Profile */}
-        <div className="m-3 rounded-2xl border border-border bg-background p-3">
+        <div 
+          onClick={() => setTab("preferences")}
+          className="m-3 cursor-pointer rounded-2xl border border-border bg-background p-3 transition-smooth hover:border-primary/40 hover:shadow-elegant"
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-navy font-display text-sm font-bold text-navy-foreground">
               {(profile.full_name ?? user.email ?? "?").slice(0, 2).toUpperCase()}
@@ -98,16 +148,36 @@ function DashboardPage() {
               <div className="truncate text-sm font-semibold">
                 {profile.full_name ?? user.email}
               </div>
-              <div className="truncate text-xs text-muted-foreground capitalize">
-                {profile.role}{profile.company_name ? ` · ${profile.company_name}` : ""}
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="truncate text-xs text-muted-foreground capitalize">
+                  {profile.role}{profile.company_name ? ` · ${profile.company_name}` : ""}
+                </span>
+                {isVerified && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
               </div>
             </div>
           </div>
           <button
-            onClick={async () => { await signOut(); navigate({ to: "/" }); }}
+            onClick={async (e) => { e.stopPropagation(); await signOut(); navigate({ to: "/" }); }}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-smooth hover:border-destructive/40 hover:text-destructive"
           >
             <LogOut className="h-3.5 w-3.5" /> Logout
+          </button>
+          
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const newRole = isInvestor ? "startup" : "investor";
+              const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", user.id);
+              if (error) {
+                toast.error(error.message);
+              } else {
+                toast.success(`Switched to ${newRole} workspace`);
+                window.location.reload(); // Hard reload to refresh all state
+              }
+            }}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent/40 px-3 py-2 text-[10px] font-bold text-primary transition-smooth hover:bg-primary/10"
+          >
+            Switch to {isInvestor ? "Founder" : "Investor"} Workspace
           </button>
         </div>
       </aside>
@@ -145,13 +215,24 @@ function DashboardPage() {
 
         <main className="px-4 py-8 md:px-8">
           {tab === "dashboard" ? (
-            <ForYou
-              isInvestor={isInvestor}
-              search={search}
-              savedIds={savedIds}
-              onToggleSave={toggleSave}
-              onRequestIntro={setRequestingInvestor}
-            />
+            isInvestor ? (
+              <InvestorHome
+                search={search}
+                savedIds={savedIds}
+                onToggleSave={toggleSave}
+              />
+            ) : (
+              <StartupHome
+                search={search}
+                savedIds={savedIds}
+                onToggleSave={toggleSave}
+                onRequestIntro={setRequestingInvestor}
+                onAddCompany={() => setShowAddCompany(true)}
+                isVerified={isVerified}
+              />
+            )
+          ) : tab === "startups" ? (
+            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} />
           ) : tab === "discover" ? (
             <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingInvestor} />
           ) : tab === "saved" ? (
@@ -163,10 +244,39 @@ function DashboardPage() {
           ) : tab === "notifications" ? (
             <EmptyState icon={Bell} title="No new notifications" desc="You'll see intro requests, matches, and event invites here." />
           ) : (
-            <Settings_ profile={profile} user={user} />
+            <Settings_ 
+              profile={profile} 
+              user={user} 
+              isVerified={isVerified} 
+              onVerify={(v) => {
+                setIsVerified(v);
+                localStorage.setItem('isVerified', String(v));
+              }}
+            />
           )}
         </main>
       </div>
+
+      {showAddCompany && (
+        <AddCompanyModal 
+          onClose={() => setShowAddCompany(false)} 
+          onSubmit={(data) => {
+            const reqs = getIntroReqs();
+            reqs.push({
+              id: Math.random().toString(36).slice(2),
+              investorId: 'self',
+              investorName: 'Internal Listing',
+              investorFocus: 'Platform',
+              status: 'pending',
+              date: new Date().toISOString(),
+              ...data
+            });
+            saveIntroReqs(reqs);
+            setShowAddCompany(false);
+            toast.success("Company idea added to My Requests!");
+          }} 
+        />
+      )}
 
       {requestingInvestor && (
         <IntroRequestModal 
@@ -192,62 +302,23 @@ function DashboardPage() {
   );
 }
 
-const STARTUP_NAV = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "discover", label: "Discover", icon: Compass },
-  { id: "saved", label: "Saved", icon: Bookmark },
-  { id: "requests", label: "My Requests", icon: Inbox },
-  { id: "connections", label: "Connections", icon: Users },
-  { id: "preferences", label: "My Startup Profile", icon: Settings },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "settings", label: "Settings", icon: Settings },
-] as const;
-
-const INVESTOR_NAV = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "discover", label: "Discover", icon: Compass },
-  { id: "saved", label: "Saved", icon: Bookmark },
-  { id: "requests", label: "Requests", icon: Inbox },
-  { id: "connections", label: "Connections", icon: Users },
-  { id: "preferences", label: "My Preferences", icon: Settings },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "settings", label: "Settings", icon: Settings },
-] as const;
+// ... constants moved above ...
 
 // ============ MOCK DATA ============
-type Startup = { id: string; name: string; initials: string; sector: string; stage: string; location: string; ask: string; match: number };
-type Investor = { id: string; name: string; initials: string; firm: string; focus: string; ticket: string; stage: string; portfolio: number; match: number };
-
-const STARTUPS: Startup[] = [
-  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96 },
-  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92 },
-  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88 },
-  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85 },
-  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81 },
-  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78 },
-];
-
-const INVESTORS: Investor[] = [
-  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95 },
-  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91 },
-  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87 },
-  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82 },
-  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76 },
-];
+// removed duplicated section
 
 // ============ SECTIONS ============
-function ForYou({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro
+function StartupHome({
+  search, savedIds, onToggleSave, onRequestIntro, onAddCompany, isVerified
 }: {
-  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void;
+  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; onAddCompany?: () => void; isVerified: boolean;
 }) {
   const [profileDomain, setProfileDomain] = useState("");
 
   useEffect(() => {
     const loadDomain = () => {
       try {
-        const key = isInvestor ? "investorProfile" : "startupProfile";
-        const saved = localStorage.getItem(key);
+        const saved = localStorage.getItem("startupProfile");
         if (saved) {
           const data = JSON.parse(saved);
           setProfileDomain(data.domain || "");
@@ -257,41 +328,56 @@ function ForYou({
     loadDomain();
     window.addEventListener('profileUpdated', loadDomain);
     return () => window.removeEventListener('profileUpdated', loadDomain);
-  }, [isInvestor]);
+  }, []);
 
   const items = useMemo(() => {
-    const list = isInvestor ? STARTUPS : INVESTORS;
+    const list = INVESTORS;
     const q = search.trim().toLowerCase();
     
     let filteredList = list;
     if (profileDomain && !q) {
       const pDomain = profileDomain.toLowerCase();
-      filteredList = list.filter((x: any) => {
-        const target = isInvestor ? x.sector : x.focus;
-        return target && target.toLowerCase().includes(pDomain);
-      });
+      filteredList = list.filter((x: any) => x.focus && x.focus.toLowerCase().includes(pDomain));
       if (filteredList.length === 0) filteredList = list;
     }
 
     if (!q) return filteredList;
     return list.filter((x: any) =>
-      [x.name, x.sector, x.focus, x.stage, x.firm].filter(Boolean).join(" ").toLowerCase().includes(q)
+      [x.name, x.focus, x.firm].filter(Boolean).join(" ").toLowerCase().includes(q)
     );
-  }, [isInvestor, search, profileDomain]);
+  }, [search, profileDomain]);
 
   return (
-    <div>
+    <div className="animate-fade-in">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-            Dashboard
+            Fundraising Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isInvestor ? "AI-curated startups matched to your thesis." : "Investors most likely to back your round."}
+            Strategic investors matched to your current funding round.
           </p>
         </div>
         <div className="flex gap-2">
-          {["Match %", "Recently added", isInvestor ? "Funding needed" : "Ticket size"].map((s, i) => (
+          <button 
+            onClick={() => {
+              if (!isVerified) {
+                toast.error("Verification Required", {
+                  description: "Please complete your KYC and company verification in Profile settings first.",
+                });
+                return;
+              }
+              onAddCompany?.();
+            }}
+            className={`flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-bold transition-smooth ${
+              isVerified 
+                ? "bg-gradient-primary text-primary-foreground shadow-elegant hover:shadow-glow" 
+                : "bg-muted text-muted-foreground cursor-not-allowed border border-border"
+            }`}
+          >
+            <Plus className="h-4 w-4" /> Add My Company
+          </button>
+          {["Match %", "Recently added", "Ticket size"].map((s, i) => (
             <button key={s} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-smooth ${i === 0 ? "border-primary/40 bg-accent text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
               {s}
             </button>
@@ -300,17 +386,90 @@ function ForYou({
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={TrendingUp} label="New matches" value="38" trend="+12% wk" />
-        <KpiCard icon={Users} label="Active connections" value="14" trend="+3" />
-        <KpiCard icon={Bookmark} label="Saved" value={String(savedIds.size)} trend="" />
-        <KpiCard icon={BarChart3} label={isInvestor ? "Deals viewed" : "Profile views"} value="284" trend="+24% wk" />
+        <KpiCard icon={TrendingUp} label="Investor matches" value="38" trend="+12% wk" />
+        <KpiCard icon={Inbox} label="Outreach sent" value="14" trend="+3" />
+        <KpiCard icon={Bookmark} label="Shortlisted" value={String(savedIds.size)} trend="" />
+        <KpiCard icon={BarChart3} label="Profile views" value="284" trend="+24% wk" />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((it: any) =>
-          isInvestor
-            ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} />
-            : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InvestorHome({
+  search, savedIds, onToggleSave
+}: {
+  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void;
+}) {
+  const [thesis, setThesis] = useState("");
+
+  useEffect(() => {
+    const loadThesis = () => {
+      try {
+        const saved = localStorage.getItem("investorProfile");
+        if (saved) {
+          const data = JSON.parse(saved);
+          setThesis(data.domain || "");
+        }
+      } catch {}
+    };
+    loadThesis();
+    window.addEventListener('profileUpdated', loadThesis);
+    return () => window.removeEventListener('profileUpdated', loadThesis);
+  }, []);
+
+  const items = useMemo(() => {
+    const list = STARTUPS;
+    const q = search.trim().toLowerCase();
+    
+    let filteredList = list;
+    if (thesis && !q) {
+      const pThesis = thesis.toLowerCase();
+      filteredList = list.filter((x: any) => x.sector && x.sector.toLowerCase().includes(pThesis));
+      if (filteredList.length === 0) filteredList = list;
+    }
+
+    if (!q) return filteredList;
+    return list.filter((x: any) =>
+      [x.name, x.sector, x.stage, x.location].filter(Boolean).join(" ").toLowerCase().includes(q)
+    );
+  }, [search, thesis]);
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+            Deal Flow Explorer
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Vetted startups matching your current investment thesis.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {["High match", "Newest", "Funding stage"].map((s, i) => (
+            <button key={s} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-smooth ${i === 0 ? "border-primary/40 bg-accent text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard icon={Sparkles} label="Vetted startups" value="126" trend="+8% wk" />
+        <KpiCard icon={Inbox} label="Inbound leads" value="42" trend="+12" />
+        <KpiCard icon={Bookmark} label="In Pipeline" value={String(savedIds.size)} trend="" />
+        <KpiCard icon={Users} label="Portfolio cos." value="47" trend="+2" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {items.map((it: any) =>
+          <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} />
         )}
       </div>
     </div>
@@ -466,7 +625,7 @@ function Connections({ isInvestor }: { isInvestor: boolean }) {
   );
 }
 
-function Settings_({ profile, user }: { profile: any; user: any }) {
+function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user: any; isVerified: boolean; onVerify: (v: boolean) => void }) {
   const isInvestor = profile.role === "investor";
   const storageKey = isInvestor ? "investorProfile" : "startupProfile";
   
@@ -479,6 +638,10 @@ function Settings_({ profile, user }: { profile: any; user: any }) {
     mobile: "",
     email: user?.email || "",
     website: "",
+    gstNumber: "",
+    founderName: "",
+    incorporationDate: "",
+    traction: "",
   };
 
   const [formData, setFormData] = useState(() => {
@@ -490,6 +653,37 @@ function Settings_({ profile, user }: { profile: any; user: any }) {
   });
 
   const [savedMsg, setSavedMsg] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [step, setStep] = useState(0);
+
+  const verificationSteps = [
+    "KYC & Identity Verification",
+    "Founder Details Check",
+    "GST Validation",
+    "Incorporation Validation",
+    "Traction Validation",
+    "AI Startup Scoring"
+  ];
+
+  const handleVerify = () => {
+    setVerifying(true);
+    setStep(0);
+    
+    const interval = setInterval(() => {
+      setStep(s => {
+        if (s >= verificationSteps.length - 1) {
+          clearInterval(interval);
+          setVerifying(false);
+          onVerify(true);
+          toast.success("Verification Successful!", {
+            description: "Your company has been verified. You can now post ideas.",
+          });
+          return s;
+        }
+        return s + 1;
+      });
+    }, 1200);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -504,57 +698,132 @@ function Settings_({ profile, user }: { profile: any; user: any }) {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-        {isInvestor ? "Investor Profile" : "Startup Profile"}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">Update your details to find better matches.</p>
+    <div className="grid gap-8 lg:grid-cols-2">
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+          {isInvestor ? "Investor Profile" : "Startup Profile"}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Update your details to find better matches.</p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6">
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
-            <input name="companyName" value={formData.companyName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">Company Logo URL</label>
-            <input name="companyLogo" value={formData.companyLogo} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">Domain / Sector (e.g. AI, Fintech)</label>
-            <input name="domain" value={formData.domain} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">Reason for Investors</label>
-            <textarea name="reason" value={formData.reason} onChange={handleChange} rows={3} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">{isInvestor ? "Ticket Size" : "Expected Funding"}</label>
-            <input name="expectedFunding" value={formData.expectedFunding} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Mobile No</label>
-              <input name="mobile" value={formData.mobile} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6 shadow-card">
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Company Name</label>
+                <input name="companyName" value={formData.companyName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Founder Name</label>
+                <input name="founderName" value={formData.founderName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
+              </div>
             </div>
+            
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">GST Number</label>
+                <input name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Optional for now" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Incorporation Date</label>
+                <input name="incorporationDate" type="date" value={formData.incorporationDate} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
+              </div>
+            </div>
+
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Email ID</label>
-              <input name="email" value={formData.email} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Current Traction (MRR/ARR)</label>
+              <input name="traction" value={formData.traction} onChange={handleChange} placeholder="e.g. $10k MRR" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile No</label>
+                <input name="mobile" value={formData.mobile} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Email ID</label>
+                <input name="email" value={formData.email} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Website</label>
+              <input name="website" value={formData.website} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase">Website</label>
-            <input name="website" value={formData.website} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+          
+          <div className="pt-4 flex items-center justify-between">
+            <button type="submit" className="rounded-lg bg-gradient-navy px-6 py-2 text-sm font-bold text-navy-foreground shadow-elegant hover:opacity-90 transition-smooth">
+              Save Details
+            </button>
+            {savedMsg && <span className="text-sm font-medium text-success animate-fade-in">{savedMsg}</span>}
           </div>
+        </form>
+      </div>
+
+      <div className="space-y-6">
+        <h2 className="font-display text-xl font-bold">Verification Center</h2>
+        <div className={`rounded-2xl border p-6 shadow-card transition-smooth ${isVerified ? "border-success/30 bg-success/5" : "border-border bg-card"}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isVerified ? "bg-success/20 text-success" : "bg-accent text-primary"}`}>
+                {isVerified ? <CheckCircle2 className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}
+              </div>
+              <div>
+                <div className="font-bold">{isVerified ? "Company Verified" : "Verification Required"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {isVerified ? "Your identity and business are validated." : "Complete the process to start posting ideas."}
+                </div>
+              </div>
+            </div>
+            {isVerified && (
+              <div className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary uppercase">
+                AI Score: 88/100
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 space-y-4">
+            {verificationSteps.map((s, i) => {
+              const isActive = verifying && i === step;
+              const isDone = isVerified || (verifying && i < step);
+              return (
+                <div key={s} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold transition-smooth ${
+                      isDone ? "border-success bg-success text-white" : isActive ? "border-primary bg-primary/10 text-primary animate-pulse" : "border-border text-muted-foreground"
+                    }`}>
+                      {isDone ? "✓" : i + 1}
+                    </div>
+                    <span className={`text-xs font-medium transition-smooth ${isDone ? "text-foreground" : isActive ? "text-primary" : "text-muted-foreground"}`}>
+                      {s}
+                    </span>
+                  </div>
+                  {isActive && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                </div>
+              );
+            })}
+          </div>
+
+          {!isVerified && (
+            <button 
+              onClick={handleVerify}
+              disabled={verifying}
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
+            >
+              {verifying ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : "Verify My Company"}
+            </button>
+          )}
         </div>
-        
-        <div className="pt-4 flex items-center justify-between">
-          <button type="submit" className="rounded-lg bg-gradient-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
-            Save Profile
-          </button>
-          {savedMsg && <span className="text-sm font-medium text-success">{savedMsg}</span>}
+
+        <div className="rounded-2xl border border-dashed border-border p-6 bg-accent/30">
+          <h3 className="text-sm font-bold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> AI Startup Insights
+          </h3>
+          <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+            Our AI analysis engine will evaluate your traction, founder history, and GST data to provide a trust score to investors. Verified startups get 3x more engagement.
+          </p>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -738,7 +1007,29 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
       const { data, error } = isInvestor ? await q : await q.eq("startup_user_id", userId);
       if (!active) return;
       if (error) toast.error(error.message);
-      setItems((data ?? []) as IntroRequest[]);
+      
+      const remoteReqs = (data ?? []) as IntroRequest[];
+      const localReqs = getIntroReqs();
+      
+      // Convert local reqs to IntroRequest format for unified display
+      const mappedLocal = localReqs.map(l => ({
+        id: l.id,
+        created_at: l.date,
+        startup_user_id: userId,
+        investor_id: l.investorId,
+        investor_name: l.investorName,
+        investor_focus: l.investorFocus,
+        company_name: l.companyName,
+        logo_url: l.logo,
+        address: l.address,
+        reason: l.reason,
+        expected_amount: l.expected,
+        status: l.status as any,
+        response_reason: l.actionReason || '',
+        responded_at: null,
+      })) as unknown as IntroRequest[];
+
+      setItems([...mappedLocal, ...remoteReqs]);
       setLoading(false);
     };
     load();
@@ -754,17 +1045,19 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
   const filtered = items.filter((r) => filter === "all" || r.status === filter);
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-        {isInvestor ? "Incoming requests" : "My requests"}
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {isInvestor
-          ? "Startups requesting an intro. Review and accept or reject each one."
-          : "Track the intros you've sent. Accepted requests turn green, rejected turn red."}
-      </p>
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+          {isInvestor ? "Incoming requests" : "My requests"}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {isInvestor
+            ? "Startups requesting an intro. Review and accept or reject each one."
+            : "Track the intros you've sent and your own company listings."}
+        </p>
+      </div>
 
-      <div className="mt-6 inline-flex flex-wrap rounded-xl border border-border bg-card p-1">
+      <div className="mb-8 inline-flex flex-wrap rounded-xl border border-border bg-card p-1">
         {(["all", "pending", "accepted", "rejected"] as const).map((f) => (
           <button
             key={f}
@@ -782,10 +1075,10 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
         <div className="mt-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
         <div className="mt-8">
-          <EmptyState icon={Inbox} title={`No ${filter === "all" ? "" : filter} requests`} desc={isInvestor ? "Once startups request intros, they'll appear here." : "Send your first intro request from Discover."} />
+          <EmptyState icon={Inbox} title={`No ${filter === "all" ? "" : filter} items`} desc={isInvestor ? "Once startups request intros, they'll appear here." : "Start by adding your company or discovering investors."} />
         </div>
       ) : (
-        <div className="mt-6 grid gap-4">
+        <div className="grid gap-4">
           {filtered.map((r) => (
             <RequestCard key={r.id} req={r} isInvestor={isInvestor} />
           ))}
@@ -933,6 +1226,86 @@ function Detail({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl border border-border bg-background/50 p-3">
       <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function AddCompanyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => void }) {
+  const [formData, setFormData] = useState({ companyName: '', logo: '', address: '', reason: '', expected: '', founderName: '', details: '' });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl animate-fade-up">
+        <div className="bg-gradient-primary p-6 text-center text-primary-foreground">
+          <h2 className="font-display text-2xl font-bold">Register Your Company</h2>
+          <p className="mt-1 text-sm opacity-90">Share your vision with the Ventura ecosystem</p>
+        </div>
+        
+        <div className="p-8">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
+                <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="e.g. Acme Corp" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Founder Name</label>
+                <input value={formData.founderName} onChange={e => setFormData({...formData, founderName: e.target.value})} placeholder="e.g. John Doe" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Company Details</label>
+              <textarea value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})} rows={2} placeholder="Briefly describe what your company does..." className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase">Idea for Funding</label>
+              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} placeholder="Why are you seeking funding? What is the main idea?" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Amount You Expect</label>
+                <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} placeholder="e.g. $500,000" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">Logo URL (Optional)</label>
+                <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} placeholder="https://..." className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex justify-end gap-3 border-t border-border pt-6">
+            <button onClick={onClose} className="rounded-lg px-6 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
+            <button onClick={() => onSubmit(formData)} className="rounded-lg bg-gradient-primary px-8 py-2 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
+              Add Me
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupsMarketplace({ search, savedIds, onToggleSave }: { search: string; savedIds: Set<string>; onToggleSave: (id: string) => void }) {
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return STARTUPS;
+    return STARTUPS.filter(s => 
+      [s.name, s.sector, s.stage, s.location].join(' ').toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Startups Marketplace</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Browse other innovative companies in the Ventura ecosystem.</p>
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {filtered.map(s => (
+          <StartupCard key={s.id} s={s} saved={savedIds.has(s.id)} onSave={() => onToggleSave(s.id)} />
+        ))}
+      </div>
     </div>
   );
 }
