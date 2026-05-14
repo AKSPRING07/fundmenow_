@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-router";
 
 import { Toaster } from "@/components/ui/sonner";
+import { Pointer } from "@/components/ui/pointer";
 
 function NotFoundComponent() {
   return (
@@ -76,8 +77,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster richColors position="top-right" />
+      <div className="relative min-h-screen cursor-none">
+        <Pointer />
+        <Outlet />
+        <Toaster richColors position="top-right" />
+      </div>
     </QueryClientProvider>
   );
 }

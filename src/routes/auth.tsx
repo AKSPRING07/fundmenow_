@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Loader2, Eye, EyeOff, Settings, HelpCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, Settings, HelpCircle, Briefcase, Users, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -84,10 +84,10 @@ function AuthPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600">
-            <span className="font-display text-sm font-bold text-white">V</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
+            <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className="font-display text-lg font-bold tracking-tight">Ventura<span className="text-emerald-500">.</span></span>
+          <span className="font-display text-lg font-bold tracking-tight">Ventura<span className="text-blue-600">.</span></span>
         </Link>
         <div className="flex items-center gap-5 text-sm text-muted-foreground">
           <button className="hidden items-center gap-1.5 hover:text-foreground sm:inline-flex">
@@ -129,21 +129,44 @@ function AuthPage() {
         {/* RIGHT — Form */}
         <div className="flex items-center justify-center px-2 py-6 md:px-10">
           <div className="w-full max-w-md">
-            <h2 className="font-display text-2xl font-bold tracking-tight">
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 shadow-lg shadow-blue-200">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <span className="font-display text-xl font-bold tracking-tight">Ventura<span className="text-blue-600">.</span></span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${isInvestor ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
+                  {isInvestor ? <Briefcase className="h-3 w-3" /> : <Users className="h-3 w-3" />}
+                  <span>{isInvestor ? "Investor" : "Startup"}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate({ to: "/auth", search: { mode, role: isInvestor ? "startup" : "investor" } })}
+                  className="text-xs font-semibold text-muted-foreground/80 hover:text-foreground transition-colors"
+                >
+                  Switch role
+                </button>
+              </div>
+            </div>
+
+            <h2 className="font-display text-3xl font-bold tracking-tight">
               {isSignup ? "Create your account" : "Sign in to your account"}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-3 text-base text-muted-foreground">
               {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
                 type="button"
                 onClick={switchMode}
-                className="font-semibold text-emerald-600 hover:text-emerald-700"
+                className="font-semibold text-blue-600 hover:text-blue-700 underline-offset-4 hover:underline"
               >
                 {isSignup ? "Sign in" : "Get started"}
               </button>
             </p>
 
-            <form onSubmit={submit} className="mt-8 space-y-5">
+            <form onSubmit={submit} className="mt-10 space-y-5">
               {isSignup && (
                 <>
                   <FloatField label="Full name" value={name} onChange={setName} placeholder="Ada Lovelace" required />
@@ -168,7 +191,7 @@ function AuthPage() {
                 <div className="flex justify-end -mb-2">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
                     Forgot password?
                   </button>
