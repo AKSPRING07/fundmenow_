@@ -987,12 +987,25 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
       angelList: "",
     } : {
       companyName: profile.company_name || "",
-      founderName: profile.full_name || "",
-      gstNumber: "",
-      incorporationDate: "",
-      traction: "",
-      mobile: "",
       email: user?.email || "",
+      mobile: "",
+      website: "",
+      linkedin: "",
+      logo: "",
+      founderName: profile.full_name || "",
+      coFounders: "",
+      founderLinkedin: "",
+      founderEmail: user?.email || "",
+      founderMobile: "",
+      companyType: "Private Limited Company",
+      cinNumber: "",
+      llpinNumber: "",
+      gstNumber: "",
+      businessPan: "",
+      establishmentYear: "",
+      businessAddress: "",
+      teamSize: "",
+      location: "",
     };
   });
 
@@ -1024,8 +1037,8 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
           clearInterval(interval);
           setVerifying(false);
           onVerify(true);
-          toast.success(isInvestor ? "Investor Accreditation Successful" : "Operational Verification Successful", {
-            description: isInvestor ? "Your institutional profile is now active for deal flow." : "Your infrastructure score is now live for investors.",
+          toast.success(isInvestor ? "Investor Accreditation Successful" : "Venture Infrastructure Verified", {
+            description: isInvestor ? "Your institutional profile is now active for deal flow." : "Your operational infrastructure is now live for investor discovery.",
           });
           return s;
         }
@@ -1060,7 +1073,7 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-              {isInvestor ? "Investor Accreditation" : "Venture Infrastructure"}
+              {isInvestor ? "Investor Accreditation" : "Startup Verification"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Manage your institutional presence and operational data.</p>
           </div>
@@ -1216,33 +1229,137 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field label="Legal Entity Name" name="companyName" value={formData.companyName} onChange={handleChange} />
-                <Field label="Authorized Representative" name="founderName" value={formData.founderName} onChange={handleChange} />
-              </div>
-              
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field label="Tax Identification (GST/EIN)" name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Verification source" />
-                <Field label="Establishment Date" name="incorporationDate" value={formData.incorporationDate} onChange={handleChange} type="date" />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Audited Traction (Monthly Revenue)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">$</span>
-                  <input name="traction" value={formData.traction} onChange={handleChange} placeholder="0.00" className="w-full rounded-xl border border-border bg-background/50 pl-8 pr-4 py-3 text-sm font-semibold focus:border-primary/50" />
+            <div className="space-y-10">
+              {/* Basic Startup Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">1</span>
+                  Basic Startup Information
                 </div>
-              </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Startup Name *" name="companyName" value={formData.companyName} onChange={handleChange} />
+                  <Field label="Official Email Address *" name="email" value={formData.email} onChange={handleChange} type="email" />
+                  <Field label="Official Mobile Number *" name="mobile" value={formData.mobile} onChange={handleChange} />
+                  <Field label="Official Website" name="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
+                  <Field label="LinkedIn Company Profile" name="linkedin" value={formData.linkedin} onChange={handleChange} placeholder="https://linkedin.com/company/..." />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Startup Logo Upload</label>
+                    <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Upload PNG/JPG</div>
+                  </div>
+                </div>
+              </section>
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field label="Direct Contact" name="mobile" value={formData.mobile} onChange={handleChange} />
-                <Field label="Verified Email" name="email" value={formData.email} onChange={handleChange} readOnly />
-              </div>
-              
-              <div className="flex items-center justify-between border-t border-border/50 pt-6">
-                <button type="submit" className="group flex items-center gap-2 rounded-xl bg-foreground px-8 py-3 text-sm font-bold text-background transition-smooth hover:opacity-90">
-                  Update Infrastructure
+              {/* Founder Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">2</span>
+                  Founder Information
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Founder Full Name *" name="founderName" value={formData.founderName} onChange={handleChange} />
+                  <Field label="Co-Founder Name(s)" name="coFounders" value={formData.coFounders} onChange={handleChange} placeholder="Comma separated" />
+                  <Field label="Founder LinkedIn Profile *" name="founderLinkedin" value={formData.founderLinkedin} onChange={handleChange} placeholder="https://linkedin.com/in/..." />
+                  <Field label="Founder Email Address *" name="founderEmail" value={formData.founderEmail} onChange={handleChange} type="email" />
+                  <Field label="Founder Mobile Number *" name="founderMobile" value={formData.founderMobile} onChange={handleChange} />
+                </div>
+              </section>
+
+              {/* Company Verification */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">3</span>
+                  Company Verification
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Company Type *</label>
+                    <div className="flex flex-wrap gap-4">
+                      {["Private Limited Company", "LLP", "Sole Proprietorship", "Partnership Firm"].map(t => (
+                        <label key={t} className="flex items-center gap-2 cursor-pointer group">
+                          <input type="radio" name="companyType" value={t} checked={formData.companyType === t} onChange={handleChange} className="accent-primary" />
+                          <span className="text-sm font-medium group-hover:text-primary transition-smooth">{t}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {formData.companyType === "LLP" ? (
+                      <Field label="LLPIN Number" name="llpinNumber" value={formData.llpinNumber} onChange={handleChange} />
+                    ) : (
+                      <Field label="Company CIN Number" name="cinNumber" value={formData.cinNumber} onChange={handleChange} />
+                    )}
+                    <Field label="GST Number" name="gstNumber" value={formData.gstNumber} onChange={handleChange} />
+                    <Field label="Business PAN Number" name="businessPan" value={formData.businessPan} onChange={handleChange} />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Registration Certificate *</label>
+                      <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Upload PDF</div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">GST Certificate</label>
+                      <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Upload PDF</div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Business PAN Card *</label>
+                      <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Upload PDF</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Business Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">4</span>
+                  Business Information
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Year of Establishment *" name="establishmentYear" value={formData.establishmentYear} onChange={handleChange} type="number" />
+                  <Field label="Company Location *" name="location" value={formData.location} onChange={handleChange} placeholder="City, Country" />
+                  <Field label="Current Team Size *" name="teamSize" value={formData.teamSize} onChange={handleChange} type="number" />
+                  <Field label="Registered Business Address *" name="businessAddress" value={formData.businessAddress} onChange={handleChange} />
+                </div>
+              </section>
+
+              {/* Verification Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">5</span>
+                  Verification Information
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Founder Government ID *</label>
+                    <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Aadhar/Passport/DL</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Office/Workspace Photos</label>
+                    <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">Upload Multi-Photos</div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Declarations */}
+              <section className="space-y-4 bg-muted/30 p-6 rounded-3xl border border-border/50">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Declaration</div>
+                <div className="space-y-3">
+                  {[
+                    "I confirm that all provided information is accurate.",
+                    "I agree to startup verification checks.",
+                    "I agree to platform terms and conditions."
+                  ].map((d, i) => (
+                    <label key={i} className="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary" required />
+                      <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-smooth">{d}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              <div className="flex items-center justify-between pt-4">
+                <button type="submit" className="group flex items-center gap-2 rounded-2xl bg-foreground px-10 py-4 text-sm font-bold text-background transition-smooth hover:opacity-90 hover:scale-[1.02]">
+                  Submit Startup Verification
                 </button>
                 {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
               </div>
