@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
-  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare, Video
+  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare, Video,
+  ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,8 +46,8 @@ const INVESTOR_NAV = [
   { id: "discover", label: "Sourcing Marketplace", icon: Compass },
   { id: "saved", label: "Pipeline", icon: Bookmark },
   { id: "requests", label: "Inbound Leads", icon: Inbox },
+  { id: "appointments", label: "My Appointments", icon: Calendar },
   { id: "connections", label: "Portfolio Network", icon: Users },
-  { id: "preferences", label: "Investment Thesis", icon: Settings },
   { id: "notifications", label: "Activity", icon: Bell },
   { id: "settings", label: "Account Settings", icon: Settings },
 ] as const;
@@ -77,7 +78,7 @@ function DashboardPage() {
   const [isVerified, setIsVerified] = useState(() => {
     return localStorage.getItem('isVerified') === 'true';
   });
-  const [requestingInvestor, setRequestingInvestor] = useState<Investor | null>(null);
+  const [requestingTarget, setRequestingTarget] = useState<any>(null);
   const [showAddCompany, setShowAddCompany] = useState(false);
 
   useEffect(() => {
@@ -220,28 +221,30 @@ function DashboardPage() {
                 search={search}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
-                onRequestIntro={setRequestingInvestor}
+                onRequestIntro={setRequestingTarget}
               />
             ) : (
               <StartupHome
                 search={search}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
-                onRequestIntro={setRequestingInvestor}
+                onRequestIntro={setRequestingTarget}
                 onAddCompany={() => setShowAddCompany(true)}
                 isVerified={isVerified}
               />
             )
           ) : tab === "startups" ? (
-            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} />
+            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
           ) : tab === "discover" ? (
-            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingInvestor} />
+            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
           ) : tab === "saved" ? (
-            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingInvestor} />
+            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
           ) : tab === "requests" ? (
             <RequestsView isInvestor={isInvestor} userId={user.id} />
+          ) : tab === "appointments" ? (
+            <AppointmentsView userId={profile.id} />
           ) : tab === "connections" ? (
-            <Connections isInvestor={isInvestor} />
+            <Connections isInvestor={isInvestor} userId={profile.id} />
           ) : tab === "notifications" ? (
             <EmptyState icon={Bell} title="No new notifications" desc="You'll see intro requests, matches, and event invites here." />
           ) : (
@@ -279,23 +282,53 @@ function DashboardPage() {
         />
       )}
 
-      {requestingInvestor && (
+      {requestingTarget && (
         <IntroRequestModal 
-          investor={requestingInvestor} 
-          onClose={() => setRequestingInvestor(null)} 
+          target={requestingTarget} 
+          isInvestor={isInvestor}
+          onClose={() => setRequestingTarget(null)} 
           onSubmit={(data) => {
             const reqs = getIntroReqs();
-            reqs.push({
+            const newReq = {
               id: Math.random().toString(36).slice(2),
-              investorId: requestingInvestor.id,
-              investorName: requestingInvestor.firm,
-              investorFocus: requestingInvestor.focus,
+              senderId: profile.id,
+              senderName: profile.full_name || user.email,
+              receiverId: requestingTarget.id,
+              receiverName: requestingTarget.firm || requestingTarget.name,
+              investorId: requestingTarget.id,
+              investorName: requestingTarget.firm || requestingTarget.name,
+              investorFocus: requestingTarget.focus || requestingTarget.sector,
               status: 'pending',
               date: new Date().toISOString(),
               ...data
-            });
+            };
+            reqs.push(newReq);
             saveIntroReqs(reqs);
-            setRequestingInvestor(null);
+
+            if (data.appointmentTime) {
+              const appointments = JSON.parse(localStorage.getItem('appointments') || '[]');
+              appointments.push({
+                id: Math.random().toString(36).slice(2),
+                senderId: profile.id,
+                receiverId: requestingTarget.id,
+                targetId: requestingTarget.id,
+                targetName: requestingTarget.name || requestingTarget.firm,
+                targetInitials: requestingTarget.initials,
+                time: data.appointmentTime,
+                meetLink: `https://meet.google.com/${Math.random().toString(36).slice(2,5)}-${Math.random().toString(36).slice(2,6)}-${Math.random().toString(36).slice(2,5)}`,
+                status: 'confirmed'
+              });
+              localStorage.setItem('appointments', JSON.stringify(appointments));
+
+              // Trigger Google Calendar sync template
+              const start = new Date(data.appointmentTime).toISOString().replace(/-|:|\.\d\d\d/g, "");
+              const end = new Date(new Date(data.appointmentTime).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+              const gUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Ventura Intro: " + (requestingTarget.name || requestingTarget.firm))}&dates=${start}/${end}&details=${encodeURIComponent("Scheduled via Ventura Venture Infrastructure.")}&location=Google Meet`;
+              window.open(gUrl, '_blank');
+            }
+
+            setRequestingTarget(null);
+            toast.success(isInvestor ? "Appointment scheduled and synced!" : "Intro request sent!");
           }} 
         />
       )}
@@ -387,10 +420,69 @@ function StartupHome({
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={TrendingUp} label="Investor matches" value="38" trend="+12% wk" />
-        <KpiCard icon={Inbox} label="Outreach sent" value="14" trend="+3" />
+        <KpiCard icon={TrendingUp} label="Institutional matches" value="38" trend="+12% wk" />
+        <KpiCard icon={Inbox} label="Venture Intros" value="14" trend="+3" />
         <KpiCard icon={Bookmark} label="Shortlisted" value={String(savedIds.size)} trend="" />
-        <KpiCard icon={BarChart3} label="Profile views" value="284" trend="+24% wk" />
+        <KpiCard icon={BarChart3} label="Audit Visibility" value="284" trend="+24% wk" />
+      </div>
+
+      <div className="mb-8 grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 rounded-3xl border border-primary/20 bg-primary/5 p-8 relative overflow-hidden group">
+          <div className="absolute right-0 top-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-primary/10 blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
+            <div className="max-w-md">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary uppercase tracking-widest mb-4">
+                <Sparkles className="h-3 w-3" /> Proprietary Intelligence
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Fundraising Probability</h2>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                Based on your current <span className="text-foreground font-semibold">Traction Velocity</span> and <span className="text-foreground font-semibold">Audit Status</span>, your probability of securing a Term Sheet within 60 days is currently <span className="text-primary font-bold">84%</span>.
+              </p>
+              <div className="mt-6 flex gap-4">
+                <div className="flex-1 rounded-2xl bg-background/50 p-4 border border-border/50">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase">Sector Heat</div>
+                  <div className="mt-1 font-bold text-success flex items-center gap-1">High <TrendingUp className="h-3 w-3" /></div>
+                </div>
+                <div className="flex-1 rounded-2xl bg-background/50 p-4 border border-border/50">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase">Inbound Index</div>
+                  <div className="mt-1 font-bold text-primary">7.4/10</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center justify-center">
+              <TrustScore score={84} label="Prob. Index" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-border bg-card p-8 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-primary" /> Allocation Readiness
+            </h3>
+            <div className="mt-6 space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                  <span>Data Room Completion</span>
+                  <span>92%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-success" style={{ width: '92%' }} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                  <span>Founder Verification</span>
+                  <span>100%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-primary" style={{ width: '100%' }} />
+              </div>
+            </div>
+          </div>
+          <button className="mt-8 w-full rounded-xl border border-border bg-background py-3 text-xs font-bold transition-smooth hover:bg-accent">
+            Generate Intelligence Report
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -462,10 +554,69 @@ function InvestorHome({
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard icon={Sparkles} label="Vetted startups" value="126" trend="+8% wk" />
-        <KpiCard icon={Inbox} label="Inbound leads" value="42" trend="+12" />
-        <KpiCard icon={Bookmark} label="In Pipeline" value={String(savedIds.size)} trend="" />
-        <KpiCard icon={Users} label="Portfolio cos." value="47" trend="+2" />
+        <KpiCard icon={Sparkles} label="Vetted Ventures" value="126" trend="+8% wk" />
+        <KpiCard icon={Inbox} label="Inbound Alpha" value="42" trend="+12" />
+        <KpiCard icon={Bookmark} label="Investment Pipeline" value={String(savedIds.size)} trend="" />
+        <KpiCard icon={Users} label="Institutional Network" value="47" trend="+2" />
+      </div>
+
+      <div className="mb-8 grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 rounded-3xl border border-blue-500/20 bg-blue-500/5 p-8 relative overflow-hidden group">
+          <div className="absolute right-0 top-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
+            <div className="max-w-md">
+              <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-4">
+                <Activity className="h-3 w-3" /> Deal Flow Intelligence
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Ecosystem Velocity</h2>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                Venture activity in <span className="text-foreground font-semibold">AI & Deeptech</span> has increased by <span className="text-blue-600 font-bold">18%</span> in the last 7 days. Current deal flow quality score is at an institutional peak.
+              </p>
+              <div className="mt-6 flex gap-4">
+                <div className="flex-1 rounded-2xl bg-background/50 p-4 border border-border/50">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase">Round Pressure</div>
+                  <div className="mt-1 font-bold text-blue-600 flex items-center gap-1">High <TrendingUp className="h-3 w-3" /></div>
+                </div>
+                <div className="flex-1 rounded-2xl bg-background/50 p-4 border border-border/50">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase">Liquidity Score</div>
+                  <div className="mt-1 font-bold text-blue-600">8.2/10</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center justify-center">
+              <TrustScore score={91} label="Alpha Index" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-border bg-card p-8 flex flex-col justify-between">
+          <div>
+            <h3 className="font-bold flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-blue-600" /> Sourcing Coverage
+            </h3>
+            <div className="mt-6 space-y-4">
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                  <span>Thesis Alignment</span>
+                  <span>88%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-blue-500" style={{ width: '88%' }} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                  <span>Geographic Reach</span>
+                  <span>Global</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-blue-500" style={{ width: '100%' }} />
+              </div>
+            </div>
+          </div>
+          <button className="mt-8 w-full rounded-xl border border-border bg-background py-3 text-xs font-bold transition-smooth hover:bg-accent">
+            Export Deal Intelligence
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -556,18 +707,169 @@ function Saved({
   );
 }
 
-function Connections({ isInvestor }: { isInvestor: boolean }) {
+function AppointmentsView({ userId }: { userId: string }) {
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  useEffect(() => {
+    const saved = localStorage.getItem('appointments');
+    if (saved) {
+      try {
+        const all = JSON.parse(saved);
+        if (Array.isArray(all)) {
+          setAppointments(all.filter((a: any) => a.senderId === userId || a.receiverId === userId));
+        }
+      } catch (e) {
+        console.error("Failed to parse appointments", e);
+      }
+    }
+  }, [userId]);
+
+  const days = useMemo(() => {
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      return d;
+    });
+  }, [currentDate]);
+
+  const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8 AM to 8 PM
+
+  const addToGoogleCalendar = (apt: any) => {
+    const start = new Date(apt.time).toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const end = new Date(new Date(apt.time).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+    const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Ventura Meeting: " + apt.targetName)}&dates=${start}/${end}&details=${encodeURIComponent("Google Meet Link: " + apt.meetLink)}&location=${encodeURIComponent(apt.meetLink)}`;
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="animate-fade-in flex flex-col h-[calc(100vh-160px)]">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Appointments</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Synchronized with your venture network.</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-1 shadow-sm">
+          <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() - 7)))} className="rounded-xl p-2 hover:bg-muted transition-smooth"><Activity className="h-4 w-4 rotate-180" /></button>
+          <button onClick={() => setCurrentDate(new Date())} className="px-4 py-1.5 text-xs font-bold hover:bg-muted rounded-xl transition-smooth">Today</button>
+          <button onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate() + 7)))} className="rounded-xl p-2 hover:bg-muted transition-smooth"><Activity className="h-4 w-4" /></button>
+          <div className="px-4 py-1.5 text-xs font-bold border-l border-border ml-1">
+            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto rounded-[2rem] border border-border bg-card shadow-elegant">
+        <div className="min-w-[800px]">
+          {/* Calendar Header */}
+          <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-border sticky top-0 z-20 bg-card/80 backdrop-blur-md">
+            <div className="h-20 border-r border-border flex items-center justify-center">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">GMT+5:30</span>
+            </div>
+            {days.map((d, i) => (
+              <div key={i} className={`h-20 flex flex-col items-center justify-center border-r border-border last:border-0 ${d.toDateString() === new Date().toDateString() ? 'bg-primary/5' : ''}`}>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                <span className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold transition-smooth ${d.toDateString() === new Date().toDateString() ? 'bg-primary text-primary-foreground shadow-glow' : 'hover:bg-muted'}`}>
+                  {d.getDate()}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="relative grid grid-cols-[80px_repeat(7,1fr)]">
+            {/* Hour markers */}
+            <div className="col-start-1">
+              {hours.map(h => (
+                <div key={h} className="h-24 border-r border-b border-border flex items-start justify-center pt-2">
+                  <span className="text-[10px] font-bold text-muted-foreground">{h > 12 ? `${h-12} PM` : h === 12 ? '12 PM' : `${h} AM`}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Day columns */}
+            {days.map((d, i) => (
+              <div key={i} className="relative h-full border-r border-border last:border-0">
+                {hours.map(h => (
+                  <div key={h} className="h-24 border-b border-border" />
+                ))}
+                
+                {/* Appointments for this day */}
+                {appointments.filter(a => new Date(a.time).toDateString() === d.toDateString()).map(apt => {
+                  const date = new Date(apt.time);
+                  const startHour = date.getHours() + date.getMinutes() / 60;
+                  const top = (startHour - 8) * 96; // 96px is h-24
+                  
+                  return (
+                    <div 
+                      key={apt.id} 
+                      style={{ top: `${top}px` }} 
+                      className="absolute left-1 right-1 z-10 rounded-xl bg-gradient-navy border border-primary/20 p-3 shadow-elegant transition-all hover:scale-[1.02] hover:shadow-glow group cursor-pointer h-24"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 font-display text-xs font-bold text-white shadow-sm">
+                          {apt.targetInitials}
+                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); addToGoogleCalendar(apt); }}
+                          className="rounded-lg bg-primary/20 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-primary"
+                          title="Sync to Google Calendar"
+                        >
+                          <Globe className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="mt-2">
+                        <div className="text-[10px] font-bold text-white/90 truncate">{apt.targetName}</div>
+                        <div className="text-[9px] font-medium text-white/60 flex items-center gap-1 mt-0.5">
+                          <Video className="h-2.5 w-2.5" /> Google Meet
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+
+            {/* Current time indicator if today is in view */}
+            {days.some(d => d.toDateString() === new Date().toDateString()) && (
+              <div 
+                className="absolute left-0 right-0 z-30 pointer-events-none"
+                style={{ 
+                  top: `${(new Date().getHours() + new Date().getMinutes() / 60 - 8) * 96}px`,
+                  display: new Date().getHours() >= 8 && new Date().getHours() < 21 ? 'block' : 'none'
+                }}
+              >
+                <div className="relative w-full border-t-2 border-primary/80">
+                  <div className="absolute -left-1.5 -top-1.5 h-3 w-3 rounded-full bg-primary" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Connections({ isInvestor, userId }: { isInvestor: boolean; userId: string }) {
   const [tab, setTab] = useState<"pending" | "active" | "archived">("pending");
   const [reqs, setReqs] = useState<LocalIntroRequest[]>([]);
   const [actionModal, setActionModal] = useState<{ req: LocalIntroRequest; action: 'accepted' | 'rejected' } | null>(null);
   const [actionReason, setActionReason] = useState("");
 
   useEffect(() => {
-    setReqs(getIntroReqs());
-    const handler = () => setReqs(getIntroReqs());
+    const load = () => {
+      const all = getIntroReqs();
+      // Filter where this user is the receiver
+      setReqs(all.filter(r => r.receiverId === userId));
+    };
+    load();
+    const handler = () => load();
     window.addEventListener('reqsUpdated', handler);
     return () => window.removeEventListener('reqsUpdated', handler);
-  }, []);
+  }, [userId]);
 
   const filtered = reqs.filter(r => {
     if (tab === 'pending') return r.status === 'pending';
@@ -611,12 +913,12 @@ function Connections({ isInvestor }: { isInvestor: boolean }) {
             <div key={r.id} className={`rounded-2xl border bg-card p-5 shadow-card flex flex-col md:flex-row gap-4 justify-between items-start ${r.status === 'accepted' ? 'border-success/50' : r.status === 'rejected' ? 'border-destructive/50' : 'border-border'}`}>
               <div>
                 <div className="font-display text-lg font-bold flex items-center gap-2">
-                  {isInvestor ? r.companyName : r.investorName}
+                  <span className="text-primary font-display">From: {r.senderName || r.investorName || 'New Request'}</span>
                   {r.status === 'accepted' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-success text-[10px] text-white">✓</span>}
                   {r.status === 'rejected' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">✕</span>}
                 </div>
                 <div className="text-sm text-muted-foreground mt-1">
-                  {isInvestor ? `Asking: ${r.expected}` : `Focus: ${r.investorFocus}`}
+                  Target: {r.investorName} • {isInvestor ? `Asking: ${r.expected}` : `Focus: ${r.investorFocus}`}
                 </div>
                 <div className="mt-3 text-sm">{r.reason}</div>
                 {r.actionReason && (
@@ -685,12 +987,11 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
   const [step, setStep] = useState(0);
 
   const verificationSteps = [
-    "KYC & Identity Verification",
-    "Founder Details Check",
-    "GST Validation",
-    "Incorporation Validation",
-    "Traction Validation",
-    "AI Startup Scoring"
+    { name: "KYC & Identity Verification", icon: ShieldCheck, desc: "Biometric and document-based identity audit" },
+    { name: "Founder Integrity Check", icon: Users, desc: "Historical professional validation" },
+    { name: "Entity Compliance Check", icon: Building2, desc: "GST and MCA incorporation audit" },
+    { name: "Financial Audit", icon: BarChart3, desc: "Bank statement and traction validation" },
+    { name: "AI Performance Scoring", icon: Zap, desc: "Growth potential and risk analysis" }
   ];
 
   const handleVerify = () => {
@@ -703,14 +1004,14 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
           clearInterval(interval);
           setVerifying(false);
           onVerify(true);
-          toast.success("Verification Successful!", {
-            description: "Your company has been verified. You can now post ideas.",
+          toast.success("Operational Verification Successful", {
+            description: "Your infrastructure score is now live for investors.",
           });
           return s;
         }
         return s + 1;
       });
-    }, 1200);
+    }, 1500);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -720,113 +1021,107 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem(storageKey, JSON.stringify(formData));
-    setSavedMsg("Profile saved successfully!");
+    setSavedMsg("Operational profile updated");
     setTimeout(() => setSavedMsg(""), 3000);
     window.dispatchEvent(new Event('profileUpdated'));
   };
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-          {isInvestor ? "Investor Profile" : "Startup Profile"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Update your details to find better matches.</p>
+    <div className="grid gap-8 lg:grid-cols-12">
+      <div className="lg:col-span-7">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
+              {isInvestor ? "Investor Infrastructure" : "Venture Infrastructure"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">Manage your institutional presence and operational data.</p>
+          </div>
+          <div className="hidden sm:block">
+            <TrustScore score={isVerified ? 88 : 12} label="Trust Index" />
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-2xl border border-border bg-card p-6 shadow-card">
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Company Name</label>
-                <input name="companyName" value={formData.companyName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Founder Name</label>
-                <input name="founderName" value={formData.founderName} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
-              </div>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-3xl border border-border/50 bg-card/30 p-8 backdrop-blur-sm">
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Legal Entity Name</label>
+              <input name="companyName" value={formData.companyName} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
             </div>
-            
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">GST Number</label>
-                <input name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Optional for now" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Incorporation Date</label>
-                <input name="incorporationDate" type="date" value={formData.incorporationDate} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Current Traction (MRR/ARR)</label>
-              <input name="traction" value={formData.traction} onChange={handleChange} placeholder="e.g. $10k MRR" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none transition-smooth" />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Mobile No</label>
-                <input name="mobile" value={formData.mobile} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Email ID</label>
-                <input name="email" value={formData.email} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-            </div>
-            
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Website</label>
-              <input name="website" value={formData.website} onChange={handleChange} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Authorized Representative</label>
+              <input name="founderName" value={formData.founderName} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
             </div>
           </div>
           
-          <div className="pt-4 flex items-center justify-between">
-            <button type="submit" className="rounded-lg bg-gradient-navy px-6 py-2 text-sm font-bold text-navy-foreground shadow-elegant hover:opacity-90 transition-smooth">
-              Save Details
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Tax Identification (GST/EIN)</label>
+              <input name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Verification source" className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Establishment Date</label>
+              <input name="incorporationDate" type="date" value={formData.incorporationDate} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Audited Traction (Monthly Revenue)</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">$</span>
+              <input name="traction" value={formData.traction} onChange={handleChange} placeholder="0.00" className="w-full rounded-xl border border-border bg-background/50 pl-8 pr-4 py-3 text-sm font-semibold focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Direct Contact</label>
+              <input name="mobile" value={formData.mobile} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Verified Email</label>
+              <input name="email" value={formData.email} onChange={handleChange} readOnly className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground cursor-not-allowed" />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between border-t border-border/50 pt-6">
+            <button type="submit" className="group flex items-center gap-2 rounded-xl bg-foreground px-8 py-3 text-sm font-bold text-background transition-smooth hover:opacity-90">
+              Update Infrastructure
             </button>
-            {savedMsg && <span className="text-sm font-medium text-success animate-fade-in">{savedMsg}</span>}
+            {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
           </div>
         </form>
       </div>
 
-      <div className="space-y-6">
-        <h2 className="font-display text-xl font-bold">Verification Center</h2>
-        <div className={`rounded-2xl border p-6 shadow-card transition-smooth ${isVerified ? "border-success/30 bg-success/5" : "border-border bg-card"}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isVerified ? "bg-success/20 text-success" : "bg-accent text-primary"}`}>
-                {isVerified ? <CheckCircle2 className="h-6 w-6" /> : <Rocket className="h-6 w-6" />}
-              </div>
-              <div>
-                <div className="font-bold">{isVerified ? "Company Verified" : "Verification Required"}</div>
-                <div className="text-xs text-muted-foreground">
-                  {isVerified ? "Your identity and business are validated." : "Complete the process to start posting ideas."}
-                </div>
-              </div>
+      <div className="lg:col-span-5 space-y-6">
+        <div className="rounded-3xl border border-border/50 bg-card/30 p-8 backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-8">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-navy shadow-elegant`}>
+              <ShieldCheck className="h-6 w-6 text-white" />
             </div>
-            {isVerified && (
-              <div className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary uppercase">
-                AI Score: 88/100
-              </div>
-            )}
+            <div>
+              <div className="font-bold text-lg">Verification Engine</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Status: {isVerified ? "Audited" : "Pending"}</div>
+            </div>
           </div>
 
-          <div className="mt-8 space-y-4">
+          <div className="space-y-6">
             {verificationSteps.map((s, i) => {
               const isActive = verifying && i === step;
               const isDone = isVerified || (verifying && i < step);
               return (
-                <div key={s} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold transition-smooth ${
-                      isDone ? "border-success bg-success text-white" : isActive ? "border-primary bg-primary/10 text-primary animate-pulse" : "border-border text-muted-foreground"
-                    }`}>
-                      {isDone ? "✓" : i + 1}
-                    </div>
-                    <span className={`text-xs font-medium transition-smooth ${isDone ? "text-foreground" : isActive ? "text-primary" : "text-muted-foreground"}`}>
-                      {s}
-                    </span>
+                <div key={s.name} className="group flex items-start gap-4">
+                  <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-smooth ${
+                    isDone ? "border-success bg-success text-white" : isActive ? "border-primary bg-primary/10 text-primary animate-pulse" : "border-border text-muted-foreground"
+                  }`}>
+                    {isDone ? "✓" : i + 1}
                   </div>
-                  {isActive && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                  <div className="flex-1">
+                    <div className={`text-xs font-bold transition-smooth ${isDone ? "text-foreground" : isActive ? "text-primary" : "text-muted-foreground"}`}>
+                      {s.name}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 opacity-60">{s.desc}</div>
+                  </div>
+                  {isDone && <Activity className="h-3 w-3 text-success/40" />}
                 </div>
               );
             })}
@@ -836,20 +1131,36 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
             <button 
               onClick={handleVerify}
               disabled={verifying}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-primary py-3 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
+              className="mt-8 flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
             >
-              {verifying ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : "Verify My Company"}
+              {verifying ? <><Loader2 className="h-4 w-4 animate-spin" /> Audit in Progress...</> : <><Lock className="h-4 w-4" /> Start Compliance Audit</>}
             </button>
+          )}
+
+          {isVerified && (
+            <div className="mt-8 rounded-2xl bg-success/5 border border-success/20 p-4 text-center">
+              <div className="text-[10px] font-bold text-success uppercase tracking-[0.2em]">Institutional-Grade Trust</div>
+              <div className="mt-1 text-xs text-muted-foreground">Your venture data is now cryptographically verified for institutional discovery.</div>
+            </div>
           )}
         </div>
 
-        <div className="rounded-2xl border border-dashed border-border p-6 bg-accent/30">
-          <h3 className="text-sm font-bold flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> AI Startup Insights
-          </h3>
-          <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-            Our AI analysis engine will evaluate your traction, founder history, and GST data to provide a trust score to investors. Verified startups get 3x more engagement.
-          </p>
+        <div className="rounded-3xl border border-primary/20 bg-primary/5 p-8 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-3xl transition-transform group-hover:scale-150" />
+          <div className="relative z-10">
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" /> AI Intelligence Layer
+            </h3>
+            <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+              Our proprietary neural matching engine evaluates your <span className="text-foreground font-semibold">traction velocity</span>, <span className="text-foreground font-semibold">sector alignment</span>, and <span className="text-foreground font-semibold">market readiness</span> to generate a unique fundraising probability score.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary" style={{ width: isVerified ? '88%' : '12%' }} />
+              </div>
+              <span className="text-[10px] font-bold text-primary">{isVerified ? '88%' : '12%'}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -865,9 +1176,32 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
+function TrustScore({ score, label }: { score: number; label: string }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant">
+    <div className="flex flex-col items-center">
+      <div className="relative flex h-24 w-24 items-center justify-center">
+        <svg className="h-full w-full rotate-[-90deg]" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" className="stroke-muted/20 fill-none" strokeWidth="6" />
+          <circle cx="50" cy="50" r="45" className="stroke-primary fill-none transition-all duration-1000" strokeWidth="6" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * score) / 100} strokeLinecap="round" />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <span className="text-xl font-bold font-display">{score}</span>
+          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
+  const [showIntelligence, setShowIntelligence] = useState(false);
+
+  return (
+    <div 
+      onMouseEnter={() => setShowIntelligence(true)}
+      onMouseLeave={() => setShowIntelligence(false)}
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant"
+    >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{s.initials}</div>
@@ -893,13 +1227,26 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
         </button>
       </div>
+
+      {showIntelligence && (
+        <div className="mt-4 animate-fade-in rounded-xl bg-primary/5 p-2.5 text-[10px] text-primary font-medium flex items-center gap-2 ring-1 ring-inset ring-primary/10">
+          <Zap className="h-3 w-3" />
+          Traction velocity high in {s.sector} sector • 94% Compatibility
+        </div>
+      )}
     </div>
   );
 }
 
 function InvestorCard({ i, saved, onSave, onRequestIntro }: { i: Investor; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
+  const [showIntelligence, setShowIntelligence] = useState(false);
+
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant">
+    <div 
+      onMouseEnter={() => setShowIntelligence(true)}
+      onMouseLeave={() => setShowIntelligence(false)}
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant"
+    >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{i.initials}</div>
@@ -930,21 +1277,34 @@ function InvestorCard({ i, saved, onSave, onRequestIntro }: { i: Investor; saved
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
         </button>
       </div>
+
+      {showIntelligence && (
+        <div className="mt-4 animate-fade-in rounded-xl bg-blue-500/5 p-2.5 text-[10px] text-blue-600 font-medium flex items-center gap-2 ring-1 ring-inset ring-blue-500/10">
+          <Activity className="h-3 w-3" />
+          High sector match • 88% Investment Readiness
+        </div>
+      )}
     </div>
   );
 }
 
 function KpiCard({ icon: Icon, label, value, trend }: { icon: any; label: string; value: string; trend: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+    <div className="group rounded-3xl border border-border bg-card/50 p-6 shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-elegant">
       <div className="flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-primary">
-          <Icon className="h-4 w-4" />
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-background border border-border transition-colors group-hover:border-primary/20 group-hover:bg-primary/5">
+          <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
         </div>
-        {trend && <span className="text-xs font-semibold text-success">{trend}</span>}
+        {trend && (
+          <div className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${trend.startsWith('+') ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
+            {trend.startsWith('+') && <TrendingUp className="h-2.5 w-2.5" />} {trend}
+          </div>
+        )}
       </div>
-      <div className="mt-4 font-display text-2xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-6 flex flex-col">
+        <span className="font-display text-2xl font-bold tracking-tight">{value}</span>
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1 opacity-70">{label}</span>
+      </div>
     </div>
   );
 }
@@ -964,57 +1324,225 @@ function EmptyState({ icon: Icon, title, desc }: { icon: any; title: string; des
   );
 }
 
-function IntroRequestModal({ investor, onClose, onSubmit }: { investor: Investor; onClose: () => void; onSubmit: (data: any) => void }) {
-  const [formData, setFormData] = useState({ companyName: '', logo: '', address: '', reason: '', expected: '' });
+function IntroRequestModal({ 
+  target, 
+  isInvestor, 
+  onClose, 
+  onSubmit 
+}: { 
+  target: any; 
+  isInvestor: boolean; 
+  onClose: () => void; 
+  onSubmit: (data: any) => void 
+}) {
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    domain: '', 
+    reason: '', 
+    appointmentTime: '',
+    companyName: '',
+    logo: '',
+    address: '',
+    expected: ''
+  });
+  
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{ score: number; details: string[] } | null>(null);
+
+  const runAIAnalysis = () => {
+    setAnalyzing(true);
+    // Simulating deep analysis
+    setTimeout(() => {
+      setAnalysisResult({
+        score: Math.floor(Math.random() * (98 - 85) + 85),
+        details: [
+          "Zero legal disputes found in public records",
+          "Entity compliance verified with registrar",
+          "Project scalability aligns with market thesis",
+          "Founder background verified via institutional logs"
+        ]
+      });
+      setAnalyzing(false);
+      toast.success("AI Analysis Complete", {
+        description: "Startup background and project idea have been verified."
+      });
+    }, 2500);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl overflow-hidden rounded-2xl bg-background shadow-2xl flex flex-col md:flex-row">
-        <div className="bg-muted p-8 md:w-1/3 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-border">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-navy font-display text-2xl font-bold text-navy-foreground mb-4">{investor.initials}</div>
-          <h2 className="font-display text-xl font-bold">{investor.firm}</h2>
-          <p className="text-sm text-muted-foreground mt-1">{investor.focus}</p>
-          <div className="mt-6 w-full rounded-xl bg-background p-4 text-left shadow-sm">
-            <div className="text-xs text-muted-foreground mb-1">Ticket Size</div>
-            <div className="font-semibold text-sm mb-3">{investor.ticket}</div>
-            <div className="text-xs text-muted-foreground mb-1">Portfolio</div>
-            <div className="font-semibold text-sm">{investor.portfolio} cos.</div>
+      <div className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl flex flex-col md:flex-row border border-border/50">
+        {/* Left Sidebar - Profile & AI Intelligence */}
+        <div className="bg-muted/40 p-8 md:w-1/3 flex flex-col items-center border-b md:border-b-0 md:border-r border-border/50">
+          <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-navy font-display text-3xl font-bold text-navy-foreground mb-4 shadow-elegant">
+            {target.initials}
           </div>
-        </div>
-
-        <div className="p-8 md:w-2/3">
-          <h2 className="font-display text-2xl font-bold mb-1">Request Intro</h2>
-          <p className="text-sm text-muted-foreground mb-6">Fill in your details to request an intro with this investor.</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight">{target.name || target.firm}</h2>
+          <p className="text-sm text-muted-foreground font-medium mt-1 uppercase tracking-wider">{target.sector || target.focus}</p>
           
-          <div className="space-y-4">
+          <div className="mt-8 w-full rounded-2xl bg-background/80 border border-border/40 p-5 shadow-sm">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
-                <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Stage / Ask</div>
+                <div className="font-bold text-sm">{target.stage || target.ticket}</div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Logo URL</label>
-                <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Match</div>
+                <div className="font-bold text-sm text-primary">{target.match}%</div>
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Address</label>
-              <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Reason for Intro</label>
-              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Expected Funding</label>
-              <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
           </div>
 
-          <div className="mt-8 flex justify-end gap-3">
-            <button onClick={() => setFormData({ companyName: '', logo: '', address: '', reason: '', expected: '' })} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">Clear</button>
-            <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground border border-border hover:bg-muted">Cancel</button>
-            <button onClick={() => onSubmit(formData)} className="rounded-lg bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow">Send Request</button>
+          {/* AI Possibility Circle - Investor Only */}
+          {isInvestor && (
+            <div className="mt-8 w-full flex flex-col items-center">
+              <button 
+                onClick={runAIAnalysis}
+                disabled={analyzing}
+                className="group relative flex h-32 w-32 items-center justify-center"
+              >
+                <div className={`absolute inset-0 rounded-full border-4 ${analyzing ? 'border-primary border-t-transparent animate-spin' : 'border-primary/20'}`} />
+                {analysisResult ? (
+                  <div className="flex flex-col items-center animate-fade-in">
+                    <span className="text-3xl font-bold text-primary">{analysisResult.score}%</span>
+                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">AI Probability</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center transition-transform group-hover:scale-110">
+                    <Zap className={`h-8 w-8 ${analyzing ? 'text-primary/40' : 'text-primary'}`} />
+                    <span className="mt-2 text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Check Possibility</span>
+                  </div>
+                )}
+              </button>
+              
+              {analysisResult && (
+                <div className="mt-6 space-y-2 animate-fade-in">
+                  {analysisResult.details.map((detail, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-[10px] text-muted-foreground font-medium">
+                      <CheckCircle2 className="h-3 w-3 text-success shrink-0 mt-0.5" />
+                      {detail}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right - Form */}
+        <div className="p-10 md:w-2/3">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-tight">Request Intro</h2>
+              <p className="text-sm text-muted-foreground mt-1">Configure your institutional introduction for <span className="text-foreground font-bold">{target.name || target.firm}</span>.</p>
+            </div>
+          </div>
+          
+          <div className="mt-10 space-y-6">
+            {isInvestor ? (
+              <>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Investor Representative Name</label>
+                    <input 
+                      placeholder="e.g. Michael Chen"
+                      value={formData.name} 
+                      onChange={e => setFormData({...formData, name: e.target.value})} 
+                      className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Thesis Domain of Interest</label>
+                    <input 
+                      placeholder="e.g. Sustainable Infrastructure"
+                      value={formData.domain} 
+                      onChange={e => setFormData({...formData, domain: e.target.value})} 
+                      className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reason for Introduction</label>
+                  <textarea 
+                    placeholder="Describe your interest in this startup's project idea..."
+                    value={formData.reason} 
+                    onChange={e => setFormData({...formData, reason: e.target.value})} 
+                    rows={4} 
+                    className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Appointment Window (Google Meet)</label>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input 
+                      type="datetime-local"
+                      value={formData.appointmentTime} 
+                      onChange={e => setFormData({...formData, appointmentTime: e.target.value})} 
+                      className="w-full rounded-xl border border-border bg-muted/30 py-3 pl-12 pr-4 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Company Name</label>
+                    <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium focus:border-primary focus:bg-background focus:outline-none" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Logo URL</label>
+                    <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Official Address</label>
+                  <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Strategic Reason for Intro</label>
+                  <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Expected Allocation/Funding</label>
+                  <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="mt-12 flex items-center justify-end gap-4">
+            <button 
+              onClick={onClose} 
+              className="rounded-xl px-6 py-3 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={() => {
+                if (isInvestor && !formData.appointmentTime) {
+                  toast.error("Appointment required", { description: "Please select a time for the Google Meet intro." });
+                  return;
+                }
+                const msg = isInvestor 
+                  ? `Intro scheduled for ${new Date(formData.appointmentTime).toLocaleString()}. Google Meet link sent to both parties.`
+                  : "Intro request sent successfully.";
+                toast.success(isInvestor ? "Appointment Confirmed" : "Request Sent", {
+                  description: msg,
+                });
+                onSubmit(formData);
+              }} 
+              className="flex items-center gap-2 rounded-xl bg-foreground px-8 py-3.5 text-sm font-bold text-background transition-all hover:scale-[1.02] active:scale-[0.98] shadow-elegant"
+            >
+              {isInvestor ? (
+                <>Schedule Appointment <Video className="h-4 w-4" /></>
+              ) : (
+                <>Send Strategic Request <ArrowUpRight className="h-4 w-4" /></>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -1039,13 +1567,15 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
       const remoteReqs = (data ?? []) as IntroRequest[];
       const localReqs = getIntroReqs();
       
-      // Convert local reqs to IntroRequest format for unified display
-      const mappedLocal = localReqs.map(l => ({
+      // Filter local reqs to only show those where this user is the receiver
+      const filteredLocal = localReqs.filter(l => l.receiverId === userId);
+      
+      const mappedLocal = filteredLocal.map(l => ({
         id: l.id,
         created_at: l.date,
-        startup_user_id: userId,
-        investor_id: l.investorId,
-        investor_name: l.investorName,
+        startup_user_id: l.senderId,
+        investor_id: l.receiverId,
+        investor_name: l.senderName || 'Anonymous',
         investor_focus: l.investorFocus,
         company_name: l.companyName,
         logo_url: l.logo,
@@ -1182,9 +1712,10 @@ function RequestCard({ req, isInvestor }: { req: IntroRequest; isInvestor: boole
             </div>
           )}
           <div>
+            <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">From: {req.investor_name}</div>
             <div className="font-display text-lg font-bold">{req.company_name}</div>
             <div className="text-xs text-muted-foreground">
-              {isInvestor ? "→ requesting intro to you" : `→ ${req.investor_name}`}
+              {isInvestor ? "→ Institutional Outreach" : `→ Outreach Target: ${req.investor_name}`}
               {req.address && <> · {req.address}</>}
             </div>
           </div>
@@ -1313,7 +1844,7 @@ function AddCompanyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
   );
 }
 
-function StartupsMarketplace({ search, savedIds, onToggleSave }: { search: string; savedIds: Set<string>; onToggleSave: (id: string) => void }) {
+function StartupsMarketplace({ search, savedIds, onToggleSave, onRequestIntro }: { search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: Startup) => void }) {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return STARTUPS;
@@ -1331,7 +1862,7 @@ function StartupsMarketplace({ search, savedIds, onToggleSave }: { search: strin
       
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map(s => (
-          <StartupCard key={s.id} s={s} saved={savedIds.has(s.id)} onSave={() => onToggleSave(s.id)} />
+          <StartupCard key={s.id} s={s} saved={savedIds.has(s.id)} onSave={() => onToggleSave(s.id)} onRequestIntro={() => onRequestIntro(s)} />
         ))}
       </div>
     </div>

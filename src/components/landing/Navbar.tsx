@@ -29,7 +29,7 @@ export function Navbar() {
     >
       <div className="mx-auto w-full max-w-7xl px-4">
         <div
-          className={`flex items-center justify-between rounded-2xl px-4 py-2.5 transition-smooth ${
+          className={`relative flex items-center justify-between rounded-2xl px-4 py-2.5 transition-smooth ${
             scrolled ? "glass shadow-card" : "bg-transparent"
           }`}
         >
@@ -42,7 +42,7 @@ export function Navbar() {
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
             {links.map((l) => (
               <a
                 key={l.href}
@@ -55,22 +55,13 @@ export function Navbar() {
           </nav>
 
           <div className="hidden items-center gap-4 md:flex">
-            <div className="flex items-center gap-1 border-r border-border pr-4 mr-2">
-              <Link
-                to="/auth"
-                search={{ role: "investor", mode: "signin" }}
-                className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground transition-smooth hover:text-foreground"
-              >
-                Investor Login
-              </Link>
-              <Link
-                to="/auth"
-                search={{ role: "startup", mode: "signin" }}
-                className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground transition-smooth hover:text-foreground"
-              >
-                Startup Login
-              </Link>
-            </div>
+            <Link
+              to="/auth"
+              className="rounded-lg px-4 py-2 text-sm font-bold text-muted-foreground transition-smooth hover:text-foreground"
+            >
+              Login
+            </Link>
+            <div className="h-4 w-px bg-border mx-1" />
             <Link
               to="/role-select"
               className="group relative overflow-hidden rounded-xl bg-gradient-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow"
@@ -102,7 +93,7 @@ export function Navbar() {
                 </a>
               ))}
               <div className="mt-2 flex gap-2 border-t border-border pt-3">
-                <Link to="/auth" search={{ role: "startup", mode: "signin" }} onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium">
+                <Link to="/auth" onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm font-medium">
                   Login
                 </Link>
                 <Link to="/role-select" onClick={() => setOpen(false)} className="flex-1 rounded-lg bg-gradient-primary px-4 py-2 text-center text-sm font-semibold text-primary-foreground">
