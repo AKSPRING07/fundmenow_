@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { Loader2, Eye, EyeOff, Settings, HelpCircle, Briefcase, Users, Sparkles } from "lucide-react";
+import { Loader2, Eye, EyeOff, Settings, HelpCircle, Briefcase, Users, Sparkles, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -83,12 +83,20 @@ function AuthPage() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 py-5 md:px-10">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
-            <Sparkles className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-display text-lg font-bold tracking-tight">Ventura<span className="text-blue-600">.</span></span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => window.history.back()}
+            className="group flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background transition-colors hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+          </button>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-display text-lg font-bold tracking-tight">Ventura<span className="text-blue-600">.</span></span>
+          </Link>
+        </div>
         <div className="flex items-center gap-5 text-sm text-muted-foreground">
           <button className="hidden items-center gap-1.5 hover:text-foreground sm:inline-flex">
             <span>Need help?</span>
@@ -187,16 +195,7 @@ function AuthPage() {
                 required
               />
 
-              {!isSignup && (
-                <div className="flex justify-end -mb-2">
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
+
 
               <FloatField
                 label="Password"
@@ -216,6 +215,17 @@ function AuthPage() {
                   </button>
                 }
               />
+
+              {!isSignup && (
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              )}
 
               <button
                 type="submit"

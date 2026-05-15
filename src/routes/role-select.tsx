@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Rocket, Briefcase, Sparkles, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Rocket, Briefcase, Sparkles, ArrowRight, CheckCircle2, ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/role-select")({
   head: () => ({
@@ -44,12 +44,20 @@ function RoleSelectPage() {
       </div>
 
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-12">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-elegant">
-            <Sparkles className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-display text-xl font-bold tracking-tight">Ventura<span className="text-gradient-primary">.</span></span>
-        </Link>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => window.history.back()}
+            className="group flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card shadow-sm transition-smooth hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+          </button>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-elegant">
+              <Sparkles className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-display text-xl font-bold tracking-tight">Ventura<span className="text-gradient-primary">.</span></span>
+          </Link>
+        </div>
       </header>
 
       <main className="relative z-10 flex min-h-[calc(100vh-80px)] items-center justify-center px-4 py-12">

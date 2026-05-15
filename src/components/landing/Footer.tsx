@@ -82,9 +82,12 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row md:items-center">
-          <span>© 2026 Ventura Labs · All rights reserved.</span>
-          <span>Built for the next generation of founders.</span>
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-8 text-[11px] font-medium text-muted-foreground/60 md:flex-row">
+          <span className="md:flex-1 text-left">© 2026 Ventura Labs · All rights reserved.</span>
+          <span className="md:flex-1 text-center tracking-[0.2em] text-[10px] text-foreground/40 font-bold">
+            by <span className="uppercase">vijayalakshmi group of companies</span>
+          </span>
+          <span className="md:flex-1 text-right">Built for the next generation of founders.</span>
         </div>
       </div>
     </footer>

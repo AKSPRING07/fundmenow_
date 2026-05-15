@@ -201,6 +201,13 @@
 .animate-marquee-vertical { animation: marquee-vertical var(--duration) linear infinite; }
 .reverse-direction { animation-direction: reverse !important; }
 
+/* Marquee Pause on Hover */
+.marquee-pause-on-hover:hover .animate-marquee,
+.marquee-pause-on-hover:hover .animate-marquee-vertical {
+  animation-play-state: paused !important;
+}
+
+
 * {
   cursor: none !important;
 }
