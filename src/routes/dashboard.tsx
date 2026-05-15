@@ -957,41 +957,61 @@ function Connections({ isInvestor, userId }: { isInvestor: boolean; userId: stri
 
 function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user: any; isVerified: boolean; onVerify: (v: boolean) => void }) {
   const isInvestor = profile.role === "investor";
-  const storageKey = isInvestor ? "investorProfile" : "startupProfile";
+  const storageKey = isInvestor ? `investor_profile_${user?.id}` : `startup_profile_${user?.id}`;
   
-  const defaultData = {
-    companyName: profile.company_name || "",
-    companyLogo: profile.avatar_url || "",
-    domain: "",
-    reason: "",
-    expectedFunding: "",
-    mobile: "",
-    email: user?.email || "",
-    website: "",
-    gstNumber: "",
-    founderName: "",
-    incorporationDate: "",
-    traction: "",
-  };
-
   const [formData, setFormData] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) return { ...defaultData, ...JSON.parse(saved) };
+      if (saved) return JSON.parse(saved);
     } catch {}
-    return defaultData;
+    
+    return isInvestor ? {
+      fullName: profile.full_name || "",
+      email: user?.email || "",
+      mobile: "",
+      linkedin: "",
+      investorType: "Angel Investor",
+      jobTitle: "",
+      firmName: profile.company_name || "",
+      website: "",
+      experience: "",
+      panNumber: "",
+      cinNumber: "",
+      sectors: [] as string[],
+      stages: [] as string[],
+      minInvest: "",
+      maxInvest: "",
+      portfolio: "",
+      bio: "",
+      crunchbase: "",
+      angelList: "",
+    } : {
+      companyName: profile.company_name || "",
+      founderName: profile.full_name || "",
+      gstNumber: "",
+      incorporationDate: "",
+      traction: "",
+      mobile: "",
+      email: user?.email || "",
+    };
   });
 
-  const [savedMsg, setSavedMsg] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [step, setStep] = useState(0);
+  const [savedMsg, setSavedMsg] = useState("");
 
-  const verificationSteps = [
+  const verificationSteps = isInvestor ? [
+    { name: "Professional Background", icon: Briefcase, desc: "Validation of experience and job title" },
+    { name: "Identity & PAN Audit", icon: ShieldCheck, desc: "Regulatory check of tax identification" },
+    { name: "Institutional Status", icon: Building2, desc: "VC Firm / Angel credential verification" },
+    { name: "Portfolio Review", icon: Bookmark, desc: "Credibility check of previous investments" },
+    { name: "AI Credibility Score", icon: Zap, desc: "Risk analysis and profiling" },
+  ] : [
     { name: "KYC & Identity Verification", icon: ShieldCheck, desc: "Biometric and document-based identity audit" },
     { name: "Founder Integrity Check", icon: Users, desc: "Historical professional validation" },
     { name: "Entity Compliance Check", icon: Building2, desc: "GST and MCA incorporation audit" },
     { name: "Financial Audit", icon: BarChart3, desc: "Bank statement and traction validation" },
-    { name: "AI Performance Scoring", icon: Zap, desc: "Growth potential and risk analysis" }
+    { name: "AI Performance Scoring", icon: Zap, desc: "Growth potential and risk analysis" },
   ];
 
   const handleVerify = () => {
@@ -1004,8 +1024,8 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
           clearInterval(interval);
           setVerifying(false);
           onVerify(true);
-          toast.success("Operational Verification Successful", {
-            description: "Your infrastructure score is now live for investors.",
+          toast.success(isInvestor ? "Investor Accreditation Successful" : "Operational Verification Successful", {
+            description: isInvestor ? "Your institutional profile is now active for deal flow." : "Your infrastructure score is now live for investors.",
           });
           return s;
         }
@@ -1014,8 +1034,16 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
     }, 1500);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const toggleArrayField = (field: 'sectors' | 'stages', value: string) => {
+    const current = [...(formData[field] || [])];
+    const index = current.indexOf(value);
+    if (index > -1) current.splice(index, 1);
+    else current.push(value);
+    setFormData({ ...formData, [field]: current });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1027,72 +1055,203 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
   };
 
   return (
-    <div className="grid gap-8 lg:grid-cols-12">
+    <div className="grid gap-8 lg:grid-cols-12 pb-20">
       <div className="lg:col-span-7">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-              {isInvestor ? "Investor Infrastructure" : "Venture Infrastructure"}
+              {isInvestor ? "Investor Accreditation" : "Venture Infrastructure"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Manage your institutional presence and operational data.</p>
           </div>
-          <div className="hidden sm:block">
-            <TrustScore score={isVerified ? 88 : 12} label="Trust Index" />
-          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-3xl border border-border/50 bg-card/30 p-8 backdrop-blur-sm">
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Legal Entity Name</label>
-              <input name="companyName" value={formData.companyName} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Authorized Representative</label>
-              <input name="founderName" value={formData.founderName} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
-            </div>
-          </div>
-          
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Tax Identification (GST/EIN)</label>
-              <input name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Verification source" className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Establishment Date</label>
-              <input name="incorporationDate" type="date" value={formData.incorporationDate} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="mt-8 space-y-8 rounded-3xl border border-border/50 bg-card/30 p-8 backdrop-blur-sm">
+          {isInvestor ? (
+            <div className="space-y-10">
+              {/* Basic Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">1</span>
+                  Basic Information
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Full Name *" name="fullName" value={formData.fullName} onChange={handleChange} />
+                  <Field label="Email Address *" name="email" value={formData.email} onChange={handleChange} type="email" />
+                  <Field label="Mobile Number *" name="mobile" value={formData.mobile} onChange={handleChange} />
+                  <Field label="LinkedIn Profile URL *" name="linkedin" value={formData.linkedin} onChange={handleChange} placeholder="https://linkedin.com/in/..." />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Investor Type *</label>
+                  <div className="flex gap-4">
+                    {["Angel Investor", "Venture Capital Firm"].map(t => (
+                      <label key={t} className="flex items-center gap-2 cursor-pointer group">
+                        <input type="radio" name="investorType" value={t} checked={formData.investorType === t} onChange={handleChange} className="accent-primary" />
+                        <span className="text-sm font-medium group-hover:text-primary transition-smooth">{t}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </section>
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Audited Traction (Monthly Revenue)</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">$</span>
-              <input name="traction" value={formData.traction} onChange={handleChange} placeholder="0.00" className="w-full rounded-xl border border-border bg-background/50 pl-8 pr-4 py-3 text-sm font-semibold focus:border-primary/50 focus:ring-4 focus:ring-primary/5" />
-            </div>
-          </div>
+              {/* Professional Information */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">2</span>
+                  Professional Information
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Current Job Title *" name="jobTitle" value={formData.jobTitle} onChange={handleChange} />
+                  <Field label="Organization / Firm Name" name="firmName" value={formData.firmName} onChange={handleChange} />
+                  <Field label="Official Website" name="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
+                  <Field label="Years of Investment Experience *" name="experience" value={formData.experience} onChange={handleChange} type="number" />
+                </div>
+              </section>
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Direct Contact</label>
-              <input name="mobile" value={formData.mobile} onChange={handleChange} className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm" />
+              {/* Identity Verification */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">3</span>
+                  Identity Verification
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="PAN Card Number *" name="panNumber" value={formData.panNumber} onChange={handleChange} placeholder="ABCDE1234F" />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Upload PAN Card *</label>
+                    <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground hover:border-primary/50 cursor-pointer transition-smooth">
+                      Drag & Drop or Browse
+                    </div>
+                  </div>
+                </div>
+                {formData.investorType === "Venture Capital Firm" && (
+                  <div className="mt-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-4">
+                    <div className="text-[10px] font-bold text-primary uppercase">VC Firm Credentials</div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Company CIN Number" name="cinNumber" value={formData.cinNumber} onChange={handleChange} />
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Registration Certificate</label>
+                        <div className="flex h-[42px] items-center justify-center rounded-xl border border-dashed border-border bg-background/50 text-[10px] font-bold text-muted-foreground transition-smooth hover:border-primary/50 cursor-pointer">Upload PDF</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Investment Preferences */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">4</span>
+                  Investment Preferences
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Preferred Startup Sectors *</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["AI", "FinTech", "SaaS", "Healthcare", "EdTech", "E-Commerce", "Blockchain", "CleanTech", "Others"].map(s => (
+                      <button key={s} type="button" onClick={() => toggleArrayField('sectors', s)} className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-smooth ${formData.sectors.includes(s) ? 'bg-primary text-white shadow-glow' : 'bg-background border border-border text-muted-foreground hover:border-primary/50'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Preferred Investment Stage *</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Idea Stage", "Pre-Seed", "Seed", "Early Stage"].map(s => (
+                      <button key={s} type="button" onClick={() => toggleArrayField('stages', s)} className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-smooth ${formData.stages.includes(s) ? 'bg-primary text-white shadow-glow' : 'bg-background border border-border text-muted-foreground hover:border-primary/50'}`}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                  <Field label="Minimum Investment Amount *" name="minInvest" value={formData.minInvest} onChange={handleChange} placeholder="e.g. $50k" />
+                  <Field label="Maximum Investment Amount *" name="maxInvest" value={formData.maxInvest} onChange={handleChange} placeholder="e.g. $500k" />
+                </div>
+              </section>
+
+              {/* Credibility Verification */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary border-b border-primary/10 pb-2">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-[10px]">5</span>
+                  Credibility Verification
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Portfolio Companies</label>
+                    <textarea name="portfolio" value={formData.portfolio} onChange={handleChange} placeholder="List some of your previous investments..." className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm min-h-[80px] focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-smooth" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Short Investor Bio *</label>
+                    <textarea name="bio" value={formData.bio} onChange={handleChange} placeholder="Tell founders about your investment philosophy..." className="w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm min-h-[100px] focus:border-primary/50 focus:ring-4 focus:ring-primary/5 outline-none transition-smooth" />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Crunchbase Profile URL" name="crunchbase" value={formData.crunchbase} onChange={handleChange} />
+                    <Field label="AngelList Profile URL" name="angelList" value={formData.angelList} onChange={handleChange} />
+                  </div>
+                </div>
+              </section>
+
+              {/* Declarations */}
+              <section className="space-y-4 bg-muted/30 p-6 rounded-3xl border border-border/50">
+                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Declaration</div>
+                <div className="space-y-3">
+                  {[
+                    "I confirm that all provided information is accurate.",
+                    "I agree to the investor verification process.",
+                    "I agree to platform terms and conditions."
+                  ].map((d, i) => (
+                    <label key={i} className="flex items-center gap-3 cursor-pointer group">
+                      <input type="checkbox" className="h-4 w-4 rounded border-border accent-primary" required />
+                      <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-smooth">{d}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              <div className="flex items-center justify-between pt-4">
+                <button type="submit" className="group flex items-center gap-2 rounded-2xl bg-primary px-10 py-4 text-sm font-bold text-white transition-smooth shadow-glow hover:scale-[1.02]">
+                  Submit for Accreditation
+                </button>
+                {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">Verified Email</label>
-              <input name="email" value={formData.email} onChange={handleChange} readOnly className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground cursor-not-allowed" />
+          ) : (
+            <div className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Legal Entity Name" name="companyName" value={formData.companyName} onChange={handleChange} />
+                <Field label="Authorized Representative" name="founderName" value={formData.founderName} onChange={handleChange} />
+              </div>
+              
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Tax Identification (GST/EIN)" name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Verification source" />
+                <Field label="Establishment Date" name="incorporationDate" value={formData.incorporationDate} onChange={handleChange} type="date" />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Audited Traction (Monthly Revenue)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">$</span>
+                  <input name="traction" value={formData.traction} onChange={handleChange} placeholder="0.00" className="w-full rounded-xl border border-border bg-background/50 pl-8 pr-4 py-3 text-sm font-semibold focus:border-primary/50" />
+                </div>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2">
+                <Field label="Direct Contact" name="mobile" value={formData.mobile} onChange={handleChange} />
+                <Field label="Verified Email" name="email" value={formData.email} onChange={handleChange} readOnly />
+              </div>
+              
+              <div className="flex items-center justify-between border-t border-border/50 pt-6">
+                <button type="submit" className="group flex items-center gap-2 rounded-xl bg-foreground px-8 py-3 text-sm font-bold text-background transition-smooth hover:opacity-90">
+                  Update Infrastructure
+                </button>
+                {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center justify-between border-t border-border/50 pt-6">
-            <button type="submit" className="group flex items-center gap-2 rounded-xl bg-foreground px-8 py-3 text-sm font-bold text-background transition-smooth hover:opacity-90">
-              Update Infrastructure
-            </button>
-            {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
-          </div>
+          )}
         </form>
       </div>
 
-      <div className="lg:col-span-5 space-y-6">
+      <div className="lg:col-span-5 space-y-6 sticky top-24 h-fit">
         <div className="rounded-3xl border border-border/50 bg-card/30 p-8 backdrop-blur-sm">
           <div className="flex items-center gap-3 mb-8">
             <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-navy shadow-elegant`}>
@@ -1138,9 +1297,14 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
           )}
 
           {isVerified && (
-            <div className="mt-8 rounded-2xl bg-success/5 border border-success/20 p-4 text-center">
-              <div className="text-[10px] font-bold text-success uppercase tracking-[0.2em]">Institutional-Grade Trust</div>
-              <div className="mt-1 text-xs text-muted-foreground">Your venture data is now cryptographically verified for institutional discovery.</div>
+            <div className="mt-8 space-y-6 animate-fade-up">
+              <div className="flex justify-center">
+                <TrustScore score={88} label="Trust Index" />
+              </div>
+              <div className="rounded-2xl bg-success/5 border border-success/20 p-4 text-center">
+                <div className="text-[10px] font-bold text-success uppercase tracking-[0.2em]">Institutional-Grade Trust</div>
+                <div className="mt-1 text-xs text-muted-foreground">Your institutional profile is now cryptographically verified for deal flow and intro sessions.</div>
+              </div>
             </div>
           )}
         </div>
@@ -1148,21 +1312,30 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
         <div className="rounded-3xl border border-primary/20 bg-primary/5 p-8 relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-3xl transition-transform group-hover:scale-150" />
           <div className="relative z-10">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" /> AI Intelligence Layer
-            </h3>
-            <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-              Our proprietary neural matching engine evaluates your <span className="text-foreground font-semibold">traction velocity</span>, <span className="text-foreground font-semibold">sector alignment</span>, and <span className="text-foreground font-semibold">market readiness</span> to generate a unique fundraising probability score.
+            <h3 className="font-display font-bold text-primary">AI Intelligence Layer</h3>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+              Our proprietary audit system continuously monitors your {isInvestor ? "investment track record" : "traction velocity"} and compliance status to maintain your trust index.
             </p>
-            <div className="mt-6 flex items-center gap-3">
-              <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: isVerified ? '88%' : '12%' }} />
-              </div>
-              <span className="text-[10px] font-bold text-primary">{isVerified ? '88%' : '12%'}</span>
-            </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, name, value, onChange, type = "text", placeholder, readOnly = false }: any) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</label>
+      <input 
+        name={name} 
+        type={type}
+        value={value} 
+        onChange={onChange} 
+        placeholder={placeholder}
+        readOnly={readOnly}
+        className={`w-full rounded-xl border border-border bg-background/50 px-4 py-3 text-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/5 transition-smooth ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`} 
+      />
     </div>
   );
 }
@@ -1177,16 +1350,49 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 function TrustScore({ score, label }: { score: number; label: string }) {
+  const [currentScore, setCurrentScore] = useState(0);
+
+  useEffect(() => {
+    const duration = 1500;
+    const startTime = performance.now();
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOutExpo = 1 - Math.pow(2, -10 * progress);
+      
+      setCurrentScore(Math.floor(easeOutExpo * score));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [score]);
+
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center animate-fade-up">
       <div className="relative flex h-24 w-24 items-center justify-center">
-        <svg className="h-full w-full rotate-[-90deg]" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="45" className="stroke-muted/20 fill-none" strokeWidth="6" />
-          <circle cx="50" cy="50" r="45" className="stroke-primary fill-none transition-all duration-1000" strokeWidth="6" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * score) / 100} strokeLinecap="round" />
+        <div className="absolute inset-0 rounded-full bg-primary/10 blur-2xl animate-pulse" />
+        <svg className="h-full w-full rotate-[-90deg] relative z-10" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" className="stroke-muted/10 fill-none" strokeWidth="8" />
+          <circle 
+            cx="50" 
+            cy="50" 
+            r="42" 
+            className="stroke-primary fill-none transition-all duration-[2000ms] ease-out" 
+            strokeWidth="8" 
+            strokeDasharray="263.9" 
+            strokeDashoffset={263.9 - (263.9 * currentScore) / 100} 
+            strokeLinecap="round" 
+          />
         </svg>
-        <div className="absolute flex flex-col items-center">
-          <span className="text-xl font-bold font-display">{score}</span>
-          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+        <div className="absolute flex flex-col items-center z-20">
+          <span className="text-2xl font-black font-display tracking-tighter text-foreground leading-none">
+            {currentScore}
+          </span>
+          <span className="text-[7px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">{label}</span>
         </div>
       </div>
     </div>
