@@ -35,8 +35,8 @@ const STARTUP_NAV = [
   { id: "discover", label: "Find Investors", icon: Compass },
   { id: "saved", label: "Shortlist", icon: Bookmark },
   { id: "requests", label: "My Outreach", icon: Inbox },
+  { id: "appointments", label: "My Appointments", icon: Calendar },
   { id: "connections", label: "Relationships", icon: Users },
-  { id: "preferences", label: "Startup Profile", icon: Settings },
   { id: "notifications", label: "Alerts", icon: Bell },
   { id: "settings", label: "Account Settings", icon: Settings },
 ] as const;
