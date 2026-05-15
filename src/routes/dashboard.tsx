@@ -106,7 +106,7 @@ function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-card lg:flex z-40">
         <div className="flex items-center gap-2 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary shadow-elegant">
             <Sparkles className="h-4 w-4 text-primary-foreground" />
@@ -186,7 +186,7 @@ function DashboardPage() {
       {/* Main */}
       <div className="min-w-0 flex-1">
         {/* Topbar */}
-        <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-xl">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3 md:px-8">
             <Link to="/" className="flex items-center gap-2 lg:hidden">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary">
