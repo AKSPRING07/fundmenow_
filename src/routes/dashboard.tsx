@@ -220,6 +220,7 @@ function DashboardPage() {
                 search={search}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
+                onRequestIntro={setRequestingInvestor}
               />
             ) : (
               <StartupHome
@@ -402,9 +403,9 @@ function StartupHome({
 }
 
 function InvestorHome({
-  search, savedIds, onToggleSave
+  search, savedIds, onToggleSave, onRequestIntro
 }: {
-  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void;
+  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: any) => void;
 }) {
   const [thesis, setThesis] = useState("");
 
@@ -469,7 +470,7 @@ function InvestorHome({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((it: any) =>
-          <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} />
+          <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
         )}
       </div>
     </div>
@@ -478,7 +479,7 @@ function InvestorHome({
 
 function Discover({
   isInvestor, search, savedIds, onToggleSave, onRequestIntro
-}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; }) {
+}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; }) {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Discover</h1>
@@ -497,6 +498,33 @@ function Discover({
       <div className="mt-6">
         <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} />
       </div>
+    </div>
+  );
+}
+
+function ForYou({
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro
+}: {
+  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void;
+}) {
+  const list = isInvestor ? STARTUPS : INVESTORS;
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return list;
+    return list.filter((it: any) => 
+      isInvestor 
+        ? [it.name, it.sector, it.stage].join(' ').toLowerCase().includes(q)
+        : [it.firm, it.focus].join(' ').toLowerCase().includes(q)
+    );
+  }, [list, search, isInvestor]);
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {filtered.map((it: any) =>
+        isInvestor
+          ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+      )}
     </div>
   );
 }
@@ -837,7 +865,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StartupCard({ s, saved, onSave }: { s: Startup; saved: boolean; onSave: () => void }) {
+function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-card transition-smooth hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-elegant">
       <div className="flex items-start justify-between">
@@ -858,7 +886,7 @@ function StartupCard({ s, saved, onSave }: { s: Startup; saved: boolean; onSave:
       </div>
 
       <div className="mt-5 flex gap-2">
-        <button className="group/cta inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+        <button onClick={onRequestIntro} className="group/cta inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
           Request intro <ArrowUpRight className="h-3 w-3 transition-transform group-hover/cta:translate-x-0.5" />
         </button>
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
