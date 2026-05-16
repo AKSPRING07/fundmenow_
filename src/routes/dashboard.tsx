@@ -52,13 +52,13 @@ const INVESTOR_NAV = [
   { id: "settings", label: "Account Settings", icon: Settings },
 ] as const;
 
-const STARTUPS: Startup[] = [
-  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96 },
-  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92 },
-  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88 },
-  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85 },
-  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81 },
-  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78 },
+const STARTUPS: any[] = [
+  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96, address: "88 Binney St, Cambridge, MA", experience: "4 Years", domain: "Biotechnology & Therapeutics" },
+  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92, address: "221 Main St, San Francisco, CA", experience: "1 Year", domain: "Artificial Intelligence Infrastructure" },
+  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88, address: "10 Lower Thames St, London", experience: "3 Years", domain: "Decentralized Finance & Ledger Tech" },
+  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85, address: "Lobeckstraße 36, Berlin", experience: "2 Years", domain: "Carbon Capture & Climate Intelligence" },
+  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81, address: "701 Brazos St, Austin, TX", experience: "5 Years", domain: "Renewable Energy Grid Management" },
+  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78, address: "MG Road, Bangalore, KA", experience: "2 Years", domain: "Enterprise Resource Planning" },
 ];
 
 const INVESTORS: any[] = [
@@ -80,6 +80,7 @@ function DashboardPage() {
   });
   const [requestingTarget, setRequestingTarget] = useState<any>(null);
   const [viewingInvestor, setViewingInvestor] = useState<any>(null);
+  const [viewingStartup, setViewingStartup] = useState<any>(null);
   const [showAddCompany, setShowAddCompany] = useState(false);
 
   useEffect(() => {
@@ -236,7 +237,7 @@ function DashboardPage() {
               />
             )
           ) : tab === "startups" ? (
-            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
+            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingStartup} />
           ) : tab === "discover" ? (
             <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
           ) : tab === "saved" ? (
@@ -394,6 +395,18 @@ function DashboardPage() {
           onRequestIntro={() => {
             const target = viewingInvestor;
             setViewingInvestor(null);
+            setRequestingTarget(target);
+          }}
+        />
+      )}
+
+      {viewingStartup && (
+        <StartupProfileModal 
+          startup={viewingStartup} 
+          onClose={() => setViewingStartup(null)} 
+          onCollaborate={() => {
+            const target = viewingStartup;
+            setViewingStartup(null);
             setRequestingTarget(target);
           }}
         />
@@ -1611,7 +1624,7 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{s.initials}</div>
           <div>
-            <div className="font-display text-base font-semibold">{s.name}</div>
+            <div onClick={() => (s as any).onViewProfile?.()} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors">{s.name}</div>
             <div className="text-xs text-muted-foreground">{s.sector} · {s.stage}</div>
           </div>
         </div>
@@ -1625,9 +1638,11 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
       </div>
 
       <div className="mt-5 flex gap-2">
-        <button onClick={onRequestIntro} className="group/cta inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
-          Request intro <ArrowUpRight className="h-3 w-3 transition-transform group-hover/cta:translate-x-0.5" />
-        </button>
+        {onRequestIntro && (
+          <button onClick={onRequestIntro} className="group/cta inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
+            Request intro <ArrowUpRight className="h-3 w-3 transition-transform group-hover/cta:translate-x-0.5" />
+          </button>
+        )}
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
         </button>
@@ -2420,7 +2435,112 @@ function InvestorProfileModal({ investor, onClose, onRequestIntro }: { investor:
   );
 }
 
-function StartupsMarketplace({ search, savedIds, onToggleSave, onRequestIntro }: { search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: Startup) => void }) {
+function StartupProfileModal({ startup, onClose, onCollaborate }: { startup: any; onClose: () => void; onCollaborate: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-4xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl animate-fade-up border border-border/50">
+        <div className="flex h-full flex-col md:flex-row">
+          {/* Left - Action Side */}
+          <div className="md:w-1/3 bg-gradient-navy p-10 flex flex-col items-center justify-center text-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-white/10 text-white font-display text-3xl font-bold shadow-elegant mb-6 ring-1 ring-white/20">
+              {startup.initials}
+            </div>
+            <h3 className="text-white font-display text-2xl font-bold mb-2">{startup.name}</h3>
+            <p className="text-white/60 text-xs mb-8">Join the {startup.name} ecosystem today.</p>
+            
+            <button 
+              onClick={onCollaborate}
+              className="w-full rounded-2xl bg-white px-6 py-4 text-sm font-bold text-navy transition-smooth hover:scale-105 active:scale-95 shadow-glow shadow-white/20"
+            >
+              Collaborate
+            </button>
+            <button 
+              onClick={onClose}
+              className="mt-4 text-xs font-bold text-white/40 hover:text-white/80 transition-smooth"
+            >
+              Back to Ecosystem
+            </button>
+          </div>
+
+          {/* Right - Content Side */}
+          <div className="flex-1 p-12 overflow-auto max-h-[80vh]">
+            <div className="flex justify-between items-start mb-10">
+              <div>
+                <h2 className="font-display text-4xl font-bold tracking-tight mb-2">Company Intelligence</h2>
+                <div className="flex items-center gap-2 text-success font-bold text-xs">
+                  <ShieldCheck className="h-4 w-4" /> Strategic Partner Network
+                </div>
+              </div>
+              <TrustScore score={startup.match} label="Growth Index" />
+            </div>
+
+            <div className="grid gap-8 sm:grid-cols-2">
+              <div className="space-y-6">
+                <div className="rounded-2xl bg-muted/30 p-6 border border-border/50">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Official Location</div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="text-sm font-semibold leading-relaxed">
+                      {startup.address || startup.location}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-primary/5 p-6 border border-primary/10">
+                  <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-4">Operational Domain</div>
+                  <div className="flex items-start gap-3">
+                    <Briefcase className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="text-sm font-bold">{startup.domain || startup.sector}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Market Experience</div>
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <div className="text-lg font-bold text-foreground">{startup.experience || '2+ Years'}</div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-muted-foreground">Verified institutional track record.</div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Core Statistics</div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Current Ask</span>
+                      <span className="font-bold">{startup.ask}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Stage</span>
+                      <span className="font-bold">{startup.stage}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10 rounded-3xl bg-navy p-8 text-navy-foreground flex items-center justify-between">
+              <div className="max-w-xs">
+                <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2">Request Status</div>
+                <div className="text-sm font-medium">This company is currently open for strategic collaborations and institutional partnerships.</div>
+              </div>
+              <button 
+                onClick={onCollaborate}
+                className="rounded-xl bg-white/10 px-6 py-2.5 text-xs font-bold backdrop-blur-md transition-smooth hover:bg-white/20"
+              >
+                Send Request
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartupsMarketplace({ search, savedIds, onToggleSave, onRequestIntro, onViewProfile }: { search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: Startup) => void; onViewProfile?: (s: Startup) => void }) {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return STARTUPS;
@@ -2438,7 +2558,12 @@ function StartupsMarketplace({ search, savedIds, onToggleSave, onRequestIntro }:
       
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map(s => (
-          <StartupCard key={s.id} s={s} saved={savedIds.has(s.id)} onSave={() => onToggleSave(s.id)} onRequestIntro={() => onRequestIntro(s)} />
+          <StartupCard 
+            key={s.id} 
+            s={{...s, onViewProfile: () => onViewProfile?.(s)}} 
+            saved={savedIds.has(s.id)} 
+            onSave={() => onToggleSave(s.id)} 
+          />
         ))}
       </div>
     </div>
