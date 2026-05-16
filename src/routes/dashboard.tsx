@@ -61,12 +61,12 @@ const STARTUPS: Startup[] = [
   { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78 },
 ];
 
-const INVESTORS: Investor[] = [
-  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95 },
-  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91 },
-  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87 },
-  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82 },
-  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76 },
+const INVESTORS: any[] = [
+  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95, type: "Venture Capital Firm", experience: "12+ Years", bio: "Leading early-stage investments in the next generation of AI-driven infrastructure and financial ecosystems.", trustScore: 98 },
+  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91, type: "VC / Family Office", experience: "15+ Years", bio: "Strategic capital for breakthrough innovations in healthcare delivery and biotechnology.", trustScore: 94 },
+  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87, type: "Institutional VC", experience: "8+ Years", bio: "Accelerating the growth of enterprise software solutions with capital and operational expertise.", trustScore: 92 },
+  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82, type: "Angel Syndicate", experience: "5+ Years", bio: "A network of mission-driven angels investing in climate resilience and renewable energy tech.", trustScore: 89 },
+  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76, type: "Syndicate", experience: "7+ Years", bio: "Partnering with bold founders building the future of consumer engagement and direct-to-consumer brands.", trustScore: 85 },
 ];
 
 function DashboardPage() {
@@ -79,6 +79,7 @@ function DashboardPage() {
     return localStorage.getItem('isVerified') === 'true';
   });
   const [requestingTarget, setRequestingTarget] = useState<any>(null);
+  const [viewingInvestor, setViewingInvestor] = useState<any>(null);
   const [showAddCompany, setShowAddCompany] = useState(false);
 
   useEffect(() => {
@@ -229,6 +230,7 @@ function DashboardPage() {
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
                 onRequestIntro={setRequestingTarget}
+                onViewProfile={setViewingInvestor}
                 onAddCompany={() => setShowAddCompany(true)}
                 isVerified={isVerified}
               />
@@ -236,9 +238,9 @@ function DashboardPage() {
           ) : tab === "startups" ? (
             <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
           ) : tab === "discover" ? (
-            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
+            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
           ) : tab === "saved" ? (
-            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} />
+            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
           ) : tab === "requests" ? (
             <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "appointments" ? (
@@ -268,16 +270,56 @@ function DashboardPage() {
             const reqs = getIntroReqs();
             reqs.push({
               id: Math.random().toString(36).slice(2),
+              senderId: profile.id,
+              senderName: profile.full_name || user.email,
               investorId: 'self',
-              investorName: 'Internal Listing',
-              investorFocus: 'Platform',
+              investorName: 'Institutional Pool',
+              investorFocus: 'Platform Listing',
               status: 'pending',
               date: new Date().toISOString(),
               ...data
             });
             saveIntroReqs(reqs);
             setShowAddCompany(false);
-            toast.success("Company idea added to My Requests!");
+            toast.success("Company successfully listed!", {
+              description: "Your venture is now visible to the global investor ecosystem."
+            });
+
+            // Simulate an investor response after 10 seconds for demo
+            setTimeout(() => {
+              const current = getIntroReqs();
+              const idx = current.findIndex(r => r.id === reqs[reqs.length - 1].id);
+              if (idx > -1) {
+                current[idx].status = 'accepted';
+                const demoDate = new Date();
+                demoDate.setDate(demoDate.getDate() + 2);
+                demoDate.setHours(14, 0, 0, 0);
+                const timeStr = demoDate.toISOString();
+                
+                current[idx].actionReason = "Impressive traction velocity. I've scheduled a deep-dive session for us.";
+                current[idx].appointmentTime = timeStr;
+                
+                // Add to appointments list too
+                const appts = JSON.parse(localStorage.getItem('appointments') || '[]');
+                appts.push({
+                  id: 'demo-' + Math.random().toString(36).slice(2),
+                  senderId: 'demo-investor',
+                  receiverId: profile.id,
+                  targetId: 'demo-investor',
+                  targetName: 'Northwind Capital',
+                  targetInitials: 'NC',
+                  time: timeStr,
+                  meetLink: 'https://meet.google.com/abc-defg-hij',
+                  status: 'confirmed'
+                });
+                localStorage.setItem('appointments', JSON.stringify(appts));
+                
+                saveIntroReqs(current);
+                toast.info("Meeting Scheduled!", {
+                  description: `Northwind Capital has scheduled a deep-dive for ${demoDate.toLocaleDateString()}.`
+                });
+              }
+            }, 10000);
           }} 
         />
       )}
@@ -300,9 +342,21 @@ function DashboardPage() {
               investorFocus: requestingTarget.focus || requestingTarget.sector,
               status: 'pending',
               date: new Date().toISOString(),
+              appointmentTime: data.appointmentTime,
               ...data
             };
             reqs.push(newReq);
+
+            // If the target is a startup listing, update the original listing state
+            const listingIdx = reqs.findIndex(r => r.id === requestingTarget.id);
+            if (listingIdx > -1) {
+              reqs[listingIdx].status = 'accepted';
+              reqs[listingIdx].actionReason = `Investor ${profile.full_name || 'Partner'} requested an intro: "${data.reason}"`;
+              if (data.appointmentTime) {
+                reqs[listingIdx].appointmentTime = data.appointmentTime;
+              }
+            }
+            
             saveIntroReqs(reqs);
 
             if (data.appointmentTime) {
@@ -332,6 +386,18 @@ function DashboardPage() {
           }} 
         />
       )}
+
+      {viewingInvestor && (
+        <InvestorProfileModal 
+          investor={viewingInvestor} 
+          onClose={() => setViewingInvestor(null)} 
+          onRequestIntro={() => {
+            const target = viewingInvestor;
+            setViewingInvestor(null);
+            setRequestingTarget(target);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -343,9 +409,9 @@ function DashboardPage() {
 
 // ============ SECTIONS ============
 function StartupHome({
-  search, savedIds, onToggleSave, onRequestIntro, onAddCompany, isVerified
+  search, savedIds, onToggleSave, onRequestIntro, onViewProfile, onAddCompany, isVerified
 }: {
-  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; onAddCompany?: () => void; isVerified: boolean;
+  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; onAddCompany?: () => void; isVerified: boolean;
 }) {
   const [profileDomain, setProfileDomain] = useState("");
 
@@ -487,7 +553,7 @@ function StartupHome({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((it: any) =>
-          <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
         )}
       </div>
     </div>
@@ -517,7 +583,7 @@ function InvestorHome({
   }, []);
 
   const items = useMemo(() => {
-    const list = STARTUPS;
+    const list = [...STARTUPS, ...getAddedCompanies()];
     const q = search.trim().toLowerCase();
     
     let filteredList = list;
@@ -629,8 +695,8 @@ function InvestorHome({
 }
 
 function Discover({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro
-}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; }) {
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile
+}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; }) {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Discover</h1>
@@ -647,16 +713,16 @@ function Discover({
       </div>
 
       <div className="mt-6">
-        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} />
+        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} onViewProfile={onViewProfile} />
       </div>
     </div>
   );
 }
 
 function ForYou({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile
 }: {
-  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void;
+  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void;
 }) {
   const list = isInvestor ? STARTUPS : INVESTORS;
   const filtered = useMemo(() => {
@@ -674,15 +740,15 @@ function ForYou({
       {filtered.map((it: any) =>
         isInvestor
           ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
-          : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
       )}
     </div>
   );
 }
 
 function Saved({
-  isInvestor, savedIds, onToggleSave, onRequestIntro
-}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: Investor) => void; }) {
+  isInvestor, savedIds, onToggleSave, onRequestIntro, onViewProfile
+}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; }) {
   const list = (isInvestor ? STARTUPS : INVESTORS).filter((x) => savedIds.has(x.id));
 
   return (
@@ -699,7 +765,7 @@ function Saved({
           {list.map((it: any) =>
             isInvestor
               ? <StartupCard key={it.id} s={it} saved onSave={() => onToggleSave(it.id)} />
-              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
           )}
         </div>
       )}
@@ -1577,7 +1643,7 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
   );
 }
 
-function InvestorCard({ i, saved, onSave, onRequestIntro }: { i: Investor; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
+function InvestorCard({ i, saved, onSave, onRequestIntro, onViewProfile }: { i: any; saved: boolean; onSave: () => void; onRequestIntro?: () => void; onViewProfile?: () => void }) {
   const [showIntelligence, setShowIntelligence] = useState(false);
 
   return (
@@ -1590,7 +1656,7 @@ function InvestorCard({ i, saved, onSave, onRequestIntro }: { i: Investor; saved
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{i.initials}</div>
           <div>
-            <div className="font-display text-base font-semibold">{i.firm}</div>
+            <div onClick={onViewProfile} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors">{i.firm}</div>
             <div className="text-xs text-muted-foreground">{i.focus}</div>
           </div>
         </div>
@@ -1906,17 +1972,17 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
       const remoteReqs = (data ?? []) as IntroRequest[];
       const localReqs = getIntroReqs();
       
-      // Filter local reqs to only show those where this user is the receiver
-      const filteredLocal = localReqs.filter(l => l.receiverId === userId);
+      // Filter local reqs to show both sent and received
+      const filteredLocal = localReqs.filter(l => l.receiverId === userId || l.senderId === userId);
       
       const mappedLocal = filteredLocal.map(l => ({
         id: l.id,
         created_at: l.date,
         startup_user_id: l.senderId,
-        investor_id: l.receiverId,
-        investor_name: l.senderName || 'Anonymous',
+        investor_id: l.investorId,
+        investor_name: l.investorName || 'Institutional Pool',
         investor_focus: l.investorFocus,
-        company_name: l.companyName,
+        company_name: l.companyName || l.senderName,
         logo_url: l.logo,
         address: l.address,
         reason: l.reason,
@@ -1924,19 +1990,29 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
         status: l.status as any,
         response_reason: l.actionReason || '',
         responded_at: null,
-      })) as unknown as IntroRequest[];
+        founder_name: l.founderName,
+        details: l.details,
+        appointment_time: l.appointmentTime,
+      })) as unknown as any[];
 
       setItems([...mappedLocal, ...remoteReqs]);
       setLoading(false);
     };
     load();
 
+    const handleLocalUpdate = () => load();
+    window.addEventListener('reqsUpdated', handleLocalUpdate);
+
     const channel = supabase
       .channel("intro_requests_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "intro_requests" }, load)
       .subscribe();
 
-    return () => { active = false; supabase.removeChannel(channel); };
+    return () => { 
+      active = false; 
+      supabase.removeChannel(channel); 
+      window.removeEventListener('reqsUpdated', handleLocalUpdate);
+    };
   }, [isInvestor, userId]);
 
   const filtered = items.filter((r) => filter === "all" || r.status === filter);
@@ -2008,6 +2084,20 @@ const saveIntroReqs = (r: LocalIntroRequest[]) => {
   window.dispatchEvent(new Event('reqsUpdated'));
 };
 
+const getAddedCompanies = (): Startup[] => {
+  const reqs = getIntroReqs();
+  return reqs.filter(r => r.investorId === 'self').map(r => ({
+    id: r.id,
+    name: r.companyName,
+    initials: r.companyName.slice(0, 2).toUpperCase(),
+    sector: r.investorFocus || 'General',
+    stage: 'Seed',
+    location: r.address || 'Remote',
+    ask: r.expected,
+    match: 99
+  }));
+};
+
 function RequestCard({ req, isInvestor }: { req: IntroRequest; isInvestor: boolean }) {
   const [responding, setResponding] = useState<null | "accepted" | "rejected">(null);
   const [reason, setReason] = useState("");
@@ -2051,8 +2141,10 @@ function RequestCard({ req, isInvestor }: { req: IntroRequest; isInvestor: boole
             </div>
           )}
           <div>
-            <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">From: {req.investor_name}</div>
-            <div className="font-display text-lg font-bold">{req.company_name}</div>
+            <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-0.5">
+              {isInvestor ? `From: ${req.company_name || 'Anonymous Startup'}` : `To: ${req.investor_name}`}
+            </div>
+            <div className="font-display text-lg font-bold">{isInvestor ? req.company_name : `My Listing: ${req.company_name || 'Project Idea'}`}</div>
             <div className="text-xs text-muted-foreground">
               {isInvestor ? "→ Institutional Outreach" : `→ Outreach Target: ${req.investor_name}`}
               {req.address && <> · {req.address}</>}
@@ -2063,17 +2155,57 @@ function RequestCard({ req, isInvestor }: { req: IntroRequest; isInvestor: boole
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Detail label="Expected raise" value={req.expected_amount} />
+        <Detail label="Expected raise" value={req.expected_amount || 'Not specified'} />
         <Detail label={isInvestor ? "Investor profile" : "Investor"} value={`${req.investor_name}${req.investor_focus ? ` · ${req.investor_focus}` : ""}`} />
       </div>
 
       <div className="mt-4">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Reason</div>
-        <p className="mt-1 text-sm text-foreground/90">{req.reason}</p>
+        <p className="mt-1 text-sm text-foreground/90">{req.reason || 'No specific reason provided for this outreach.'}</p>
       </div>
 
+      {req.details && (
+        <div className="mt-4">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">About the Venture</div>
+          <p className="mt-1 text-sm text-foreground/80 leading-relaxed">{req.details}</p>
+        </div>
+      )}
+
+      {req.appointment_time && (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 animate-pulse-slow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              <div className="text-xs font-bold text-primary uppercase tracking-wider">Investor Meeting Scheduled</div>
+            </div>
+            <div className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">CONFIRMED</div>
+          </div>
+          <div className="mt-2 text-sm font-bold text-foreground">
+            {new Date(req.appointment_time).toLocaleString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric', 
+              hour: 'numeric', 
+              minute: '2-digit' 
+            })}
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+            <Video className="h-3 w-3" /> Google Meet link sent to your email
+          </div>
+        </div>
+      )}
+
+      {req.founder_name && (
+        <div className="mt-4 flex items-center gap-2">
+          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+            <Users className="h-3 w-3 text-primary" />
+          </div>
+          <span className="text-xs font-medium text-muted-foreground">Founder: <span className="text-foreground">{req.founder_name}</span></span>
+        </div>
+      )}
+
       {req.response_reason && (
-        <div className={`mt-4 rounded-xl p-3 ${req.status === "accepted" ? "bg-success/10" : "bg-destructive/10"}`}>
+        <div className={`mt-5 rounded-xl p-4 ${req.status === "accepted" ? "bg-success/10 border border-success/20" : "bg-destructive/10 border border-destructive/20"}`}>
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
             <MessageSquare className="h-3 w-3" />
             {req.status === "accepted" ? "Investor's note" : "Reason for rejection"}
@@ -2175,6 +2307,111 @@ function AddCompanyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
             <button onClick={onClose} className="rounded-lg px-6 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
             <button onClick={() => onSubmit(formData)} className="rounded-lg bg-gradient-primary px-8 py-2 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
               Add Me
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InvestorProfileModal({ investor, onClose, onRequestIntro }: { investor: any; onClose: () => void; onRequestIntro: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl animate-fade-up border border-border/50">
+        <div className="relative h-32 bg-gradient-navy">
+          <button onClick={onClose} className="absolute right-6 top-6 rounded-full bg-black/20 p-2 text-white transition-smooth hover:bg-black/40">
+            <XCircle className="h-6 w-6" />
+          </button>
+          <div className="absolute -bottom-10 left-10 flex h-24 w-24 items-center justify-center rounded-3xl bg-card border-4 border-background shadow-elegant">
+            <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-navy font-display text-2xl font-bold text-white">
+              {investor.initials}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-16 px-10 pb-10">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="font-display text-3xl font-bold tracking-tight">{investor.firm}</h2>
+              <div className="mt-1 flex items-center gap-2 text-primary font-bold text-sm">
+                <ShieldCheck className="h-4 w-4" /> Institutional-Grade Partner
+              </div>
+            </div>
+            <div className="flex flex-col items-end">
+              <TrustScore score={investor.trustScore} label="Trust Index" />
+              <div className="mt-2 text-[10px] font-bold text-success uppercase tracking-widest bg-success/10 px-2 py-0.5 rounded-full">Background Audited</div>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-2">
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-muted/30 p-4 border border-border/50">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Investor Credentials</div>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Entity Type</span>
+                    <span className="text-xs font-bold">{investor.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Experience</span>
+                    <span className="text-xs font-bold">{investor.experience}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Ticket Size</span>
+                    <span className="text-xs font-bold text-primary">{investor.ticket}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Interested Domains</div>
+                <div className="flex flex-wrap gap-2">
+                  {investor.focus.split(' · ').map((f: string) => (
+                    <span key={f} className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary ring-1 ring-inset ring-primary/20">{f}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Investment Thesis</div>
+                <p className="text-xs text-muted-foreground leading-relaxed italic">
+                  "{investor.bio}"
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Verification Roadmap</div>
+                <div className="space-y-2">
+                  {[
+                    { label: "Identity & PAN Audit", status: "Verified" },
+                    { label: "Professional Background", status: "Verified" },
+                    { label: "Institutional Status", status: "Audited" }
+                  ].map((s, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <span className="text-[10px] font-medium">{s.label}</span>
+                      <CheckCircle2 className="h-3 w-3 text-success" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 flex gap-4">
+            <button 
+              onClick={onRequestIntro}
+              className="flex-1 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth active:scale-95"
+            >
+              Request Institutional Introduction
+            </button>
+            <button 
+              onClick={onClose}
+              className="rounded-2xl border border-border px-8 py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
+            >
+              Close
             </button>
           </div>
         </div>
