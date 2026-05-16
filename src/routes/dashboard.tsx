@@ -1,16 +1,39 @@
+import { 
+  DndContext, 
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  useDroppable,
+  defaultDropAnimationSideEffects,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
   Inbox, CheckCircle2, Check, XCircle, Clock, Building2, MessageSquare, Video,
-  ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar
+  ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar,
+  MoreVertical, ChevronRight, FileText, Upload, DollarSign, Percent, LogIn, Filter
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { toast } from "sonner";
 
 type IntroRequest = Database["public"]["Tables"]["intro_requests"]["Row"];
 
@@ -241,7 +264,7 @@ function DashboardPage() {
           ) : tab === "discover" ? (
             <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
           ) : tab === "saved" ? (
-            <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
+            isInvestor ? <PipelineBoard search={search} /> : <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
           ) : tab === "requests" ? (
             <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "appointments" ? (
@@ -2545,6 +2568,496 @@ function StartupProfileModal({ startup, onClose, onCollaborate }: { startup: any
         </div>
       </div>
     </div>
+  );
+}
+
+// ============ KANBAN PIPELINE ============
+
+const PIPELINE_STAGES = [
+  { id: 'started', label: 'Started', color: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-600' },
+  { id: 'discussion', label: 'Discussion', color: 'bg-orange-500', light: 'bg-orange-50', text: 'text-orange-600' },
+  { id: 'due_diligence', label: 'Due Diligence', color: 'bg-purple-500', light: 'bg-purple-50', text: 'text-purple-600' },
+  { id: 'invested', label: 'Invested', color: 'bg-green-500', light: 'bg-green-50', text: 'text-green-600' },
+  { id: 'active', label: 'Active', color: 'bg-teal-500', light: 'bg-teal-50', text: 'text-teal-600' },
+  { id: 'finished', label: 'Finished', color: 'bg-gray-500', light: 'bg-gray-50', text: 'text-gray-600' },
+];
+
+const INITIAL_PIPELINE_DATA: any = {
+  started: [
+    { id: 'd1', name: 'Helix Bio', founder: 'Sarah Chen', industry: 'Healthtech', amount: '$2M', priority: 'High', date: '2024-05-10', avatar: 'SC' },
+    { id: 'd2', name: 'Quanta SaaS', founder: 'Alex Rivers', industry: 'B2B SaaS', amount: '$1.5M', priority: 'Medium', date: '2024-05-12', avatar: 'AR' },
+  ],
+  discussion: [
+    { id: 'd3', name: 'LedgerLoop', founder: 'Marcus Bell', industry: 'Fintech', amount: '$4.5M', priority: 'High', date: '2024-05-08', avatar: 'MB' },
+  ],
+  due_diligence: [],
+  invested: [
+    { id: 'd4', name: 'Atlas Grid', founder: 'Elena Rodriguez', industry: 'Energy', amount: '$8M', priority: 'Critical', date: '2024-04-20', avatar: 'ER' },
+  ],
+  active: [],
+  finished: [],
+};
+
+function PipelineBoard({ search }: { search: string }) {
+  const [data, setData] = useState(() => {
+    const saved = localStorage.getItem('investorPipeline');
+    return saved ? JSON.parse(saved) : INITIAL_PIPELINE_DATA;
+  });
+  
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [pendingMove, setPendingMove] = useState<any>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('investorPipeline', JSON.stringify(data));
+  }, [data]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const findColumn = useCallback((id: string) => {
+    if (id in data) return id;
+    return Object.keys(data).find(key => data[key].some((item: any) => item.id === id));
+  }, [data]);
+
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragOver = useCallback((event: any) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    if (!overId) return;
+
+    const activeColumn = findColumn(active.id);
+    const overColumn = findColumn(overId);
+
+    if (!activeColumn || !overColumn || activeColumn === overColumn) return;
+
+    setData((prev: any) => {
+      const activeItems = prev[activeColumn];
+      const overItems = prev[overColumn];
+
+      const activeIndex = activeItems.findIndex((i: any) => i.id === active.id);
+      const overIndex = overItems.findIndex((i: any) => i.id === overId);
+
+      let newIndex;
+      if (overId in prev) {
+        newIndex = overItems.length;
+      } else {
+        const isBelowLastItem = over && overIndex === overItems.length - 1;
+        const modifier = isBelowLastItem ? 1 : 0;
+        newIndex = overIndex >= 0 ? overIndex + modifier : overItems.length;
+      }
+
+      return {
+        ...prev,
+        [activeColumn]: activeItems.filter((i: any) => i.id !== active.id),
+        [overColumn]: [
+          ...overItems.slice(0, newIndex),
+          activeItems[activeIndex],
+          ...overItems.slice(newIndex)
+        ]
+      };
+    });
+  }, [findColumn]);
+
+  const handleDragEnd = useCallback((event: any) => {
+    const { active, over } = event;
+    const overId = over?.id;
+
+    if (!overId) {
+      setActiveId(null);
+      return;
+    }
+
+    const activeColumn = findColumn(active.id);
+    const overColumn = findColumn(overId);
+
+    if (activeColumn && overColumn && activeColumn !== overColumn) {
+      // The item has already been moved to overColumn by handleDragOver
+      const item = data[overColumn].find((i: any) => i.id === active.id);
+      if (item) {
+        setPendingMove({ item, from: activeColumn, to: overColumn });
+      }
+    }
+
+    setActiveId(null);
+  }, [data, findColumn]);
+
+  const activeItem = activeId ? Object.values(data).flat().find((i: any) => i.id === activeId) : null;
+
+  return (
+    <div className="h-[calc(100vh-160px)] flex flex-col animate-fade-in overflow-hidden">
+      <div className="mb-4 flex items-center justify-between shrink-0">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Deal Pipeline</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage your active investment lifecycle and due diligence.</p>
+        </div>
+        <div className="flex gap-2">
+          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-smooth hover:border-primary/40 hover:text-foreground">
+            <Filter className="h-3.5 w-3.5" /> Filters
+          </button>
+          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 rounded-lg bg-gradient-primary px-4 py-1.5 text-xs font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
+            <Plus className="h-4 w-4" /> Create Deal
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-6 gap-3 h-full pb-2">
+            {PIPELINE_STAGES.map((stage, idx) => (
+              <DroppableColumn 
+                key={stage.id}
+                id={stage.id}
+                stage={stage}
+                items={data[stage.id] || []}
+                idx={idx}
+                onCreateDeal={() => setShowCreate(true)}
+              />
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeId ? (
+              <div className="opacity-100 scale-105 shadow-2xl rounded-sm border border-gray-200 bg-white p-3 w-full max-w-[180px]">
+                <div className="text-xs font-medium text-[#172B4D]">{activeItem?.name}</div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
+
+      <AnimatePresence>
+        {pendingMove && (
+          <MoveStatusModal 
+            move={pendingMove} 
+            onClose={() => setPendingMove(null)} 
+            onConfirm={(notes: any) => {
+              toast.success(`Deal stage updated to ${PIPELINE_STAGES.find(s => s.id === pendingMove.to)?.label}`);
+              setPendingMove(null);
+            }} 
+          />
+        )}
+        {showCreate && (
+          <CreateDealModal 
+            onClose={() => setShowCreate(false)} 
+            onSubmit={(card: any) => {
+              setData((prev: any) => ({
+                ...prev,
+                started: [{ ...card, id: Math.random().toString(36).slice(2), date: new Date().toISOString(), avatar: card.founder.slice(0, 2).toUpperCase() }, ...prev.started]
+              }));
+              setShowCreate(false);
+              toast.success("New deal created successfully!");
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DroppableColumn({ id, stage, items, idx, onCreateDeal }: { id: string; stage: any; items: any[]; idx: number; onCreateDeal: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <SortableContext
+      id={id}
+      items={items.map(i => i.id)}
+      strategy={verticalListSortingStrategy}
+    >
+      <div 
+        ref={setNodeRef}
+        className={`flex flex-col bg-[#F4F5F7] rounded-sm p-2 min-w-0 h-full border-t-2 transition-all ${isOver ? 'bg-gray-200 ring-2 ring-primary/20' : ''}`} 
+        style={{ borderTopColor: stage.id === 'started' ? '#4C9AFF' : stage.id === 'discussion' ? '#FFAB00' : stage.id === 'due_diligence' ? '#6554C0' : stage.id === 'invested' ? '#36B37E' : stage.id === 'active' ? '#00B8D9' : '#5E6C84' }}
+      >
+        <div className="flex items-center gap-2 mb-3 px-1 pointer-events-none">
+          <h3 className="font-bold text-[10px] text-[#5E6C84] uppercase tracking-wider truncate">{stage.label}</h3>
+          <span className="text-[10px] font-bold text-[#5E6C84]">
+            {items.length}
+          </span>
+        </div>
+
+        <div className="flex-1 space-y-2 overflow-y-auto pr-1 scrollbar-hide min-h-0">
+          {items.map((item: any, iIdx: number) => (
+            <KanbanCard key={item.id} item={item} index={iIdx} stageIdx={idx} />
+          ))}
+          {items.length === 0 && (
+            <div className="h-20 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-[9px] uppercase font-bold tracking-widest bg-white/50">
+              Empty
+            </div>
+          )}
+        </div>
+        
+        <button onClick={onCreateDeal} className="mt-2 w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-200 text-[11px] font-medium text-[#42526E] transition-colors">
+          <Plus className="h-3.5 w-3.5" /> Create
+        </button>
+      </div>
+    </SortableContext>
+  );
+}
+
+function KanbanCard({ item, index, stageIdx }: { item: any; index: number; stageIdx: number }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
+
+  const key = `VNT-${100 + (stageIdx * 10) + index}`;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`group relative overflow-hidden rounded-md border border-gray-200 bg-white p-3 shadow-sm transition-all cursor-grab active:cursor-grabbing hover:bg-gray-50 ${isDragging ? 'opacity-30' : ''}`}
+    >
+      <div className="mb-4">
+        <h4 className="text-[13px] font-medium text-[#172B4D] leading-tight group-hover:text-primary transition-colors">
+          {item.name}
+        </h4>
+        <p className="text-[10px] text-[#5E6C84] mt-1">{item.industry}</p>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-[#4C9AFF] text-white">
+            <Check className="h-3 w-3" />
+          </div>
+          <span className="text-[10px] font-bold text-[#5E6C84] uppercase">{key}</span>
+        </div>
+        
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
+          {item.avatar || 'T'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoveStatusModal({ move, onClose, onConfirm }: { move: any; onClose: () => void; onConfirm: (notes: any) => void }) {
+  const stage = PIPELINE_STAGES.find(s => s.id === move.to);
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+        className="w-full max-w-md overflow-hidden rounded-[2.5rem] bg-background shadow-2xl border border-border/50 p-8"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className={`h-12 w-12 rounded-2xl ${stage?.color} flex items-center justify-center text-white shadow-lg`}>
+            <TrendingUp className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="font-display text-xl font-bold tracking-tight">Stage Update: {stage?.label}</h2>
+            <p className="text-xs text-muted-foreground">Confirm the transition for <span className="font-bold text-foreground">{move.item.name}</span></p>
+          </div>
+        </div>
+
+        <div className="space-y-4 mb-8">
+          {move.to === 'discussion' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Meeting Date</label>
+                <input type="datetime-local" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Initial Thesis</label>
+                <textarea placeholder="Key reasons for interest..." className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm h-24 focus:border-primary outline-none resize-none" />
+              </div>
+            </>
+          )}
+
+          {move.to === 'due_diligence' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Required Documents</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Cap Table', 'Financials', 'Tech Audit', 'Legal KYC'].map(doc => (
+                    <div key={doc} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border/50">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-[10px] font-bold">{doc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Lead Analyst</label>
+                <select className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none">
+                  <option>Principal Partner</option>
+                  <option>Senior Analyst</option>
+                  <option>Legal Counsel</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {move.to === 'invested' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Final Amount</label>
+                  <input placeholder="$250,000" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Equity %</label>
+                  <input placeholder="8.5%" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
+                </div>
+              </div>
+              <div className="rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 p-6 text-center cursor-pointer hover:bg-primary/10 transition-colors">
+                <Upload className="h-6 w-6 text-primary mx-auto mb-2" />
+                <span className="text-[10px] font-bold text-primary uppercase">Upload Signed Term Sheet</span>
+              </div>
+            </>
+          )}
+
+          {(move.to === 'started' || move.to === 'active' || move.to === 'finished') && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Internal Notes</label>
+              <textarea placeholder="Update context for this stage move..." className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm h-32 focus:border-primary outline-none resize-none" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 rounded-2xl border border-border py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className={`flex-1 rounded-2xl py-4 text-sm font-bold text-white shadow-elegant transition-smooth hover:shadow-glow ${stage?.color}`}>
+            Confirm Move
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function CreateDealModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => void }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    founder: '',
+    industry: 'Fintech',
+    amount: '',
+    priority: 'Medium',
+    description: ''
+  });
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+        className="w-full max-w-2xl rounded-[3rem] bg-background shadow-2xl border border-border/50 p-12 relative"
+      >
+        <button onClick={onClose} className="absolute right-10 top-10 text-muted-foreground hover:text-foreground">
+          <XCircle className="h-8 w-8" />
+        </button>
+
+        <h2 className="font-display text-4xl font-bold tracking-tight mb-2">Create New Deal</h2>
+        <p className="text-muted-foreground text-sm mb-10">Add a new venture to your investment pipeline and start tracking.</p>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="space-y-6">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Startup Name</label>
+              <input 
+                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+                placeholder="e.g. Helix Bio" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Founder Details</label>
+              <input 
+                value={formData.founder} onChange={e => setFormData({...formData, founder: e.target.value})}
+                placeholder="Full Name" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Industry</label>
+                <select 
+                  value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})}
+                  className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none"
+                >
+                  <option>Fintech</option>
+                  <option>Healthtech</option>
+                  <option>AI / ML</option>
+                  <option>Consumer</option>
+                  <option>SaaS</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Priority</label>
+                <select 
+                  value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
+                  className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none"
+                >
+                  <option>Low</option>
+                  <option>Medium</option>
+                  <option>High</option>
+                  <option>Critical</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Funding Requirement</label>
+              <input 
+                value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
+                placeholder="$500K - $1M" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Opportunity Brief</label>
+              <textarea 
+                value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
+                placeholder="Summary of the thesis..." className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm h-[132px] focus:border-primary outline-none resize-none transition-all focus:ring-4 focus:ring-primary/5" 
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-12 flex gap-4">
+          <button onClick={onClose} className="flex-1 rounded-[1.5rem] border border-border py-5 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted">
+            Discard Entry
+          </button>
+          <button 
+            disabled={!formData.name}
+            onClick={() => onSubmit(formData)} 
+            className="flex-1 rounded-[1.5rem] bg-gradient-primary py-5 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
+          >
+            Launch Deal Entry
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
