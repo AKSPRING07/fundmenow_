@@ -1611,8 +1611,9 @@ function TrustScore({ score, label }: { score: number; label: string }) {
   );
 }
 
-function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void }) {
+function StartupCard({ s, saved, onSave, onRequestIntro, alwaysShowIntelligence }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void; alwaysShowIntelligence?: boolean }) {
   const [showIntelligence, setShowIntelligence] = useState(false);
+  const displayIntelligence = showIntelligence || alwaysShowIntelligence;
 
   return (
     <div 
@@ -1631,6 +1632,13 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
         <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">{s.match}% match</span>
       </div>
 
+      {alwaysShowIntelligence && displayIntelligence && (
+        <div className="mt-3 animate-fade-in rounded-xl bg-primary/5 p-2.5 text-[10px] text-primary font-medium flex items-center gap-2 ring-1 ring-inset ring-primary/10">
+          <Zap className="h-3 w-3" />
+          Traction velocity high in {s.sector} sector • 94% Compatibility
+        </div>
+      )}
+
       <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {s.location}</span>
         <span>·</span>
@@ -1648,7 +1656,7 @@ function StartupCard({ s, saved, onSave, onRequestIntro }: { s: Startup; saved: 
         </button>
       </div>
 
-      {showIntelligence && (
+      {!alwaysShowIntelligence && displayIntelligence && (
         <div className="mt-4 animate-fade-in rounded-xl bg-primary/5 p-2.5 text-[10px] text-primary font-medium flex items-center gap-2 ring-1 ring-inset ring-primary/10">
           <Zap className="h-3 w-3" />
           Traction velocity high in {s.sector} sector • 94% Compatibility
@@ -2563,6 +2571,7 @@ function StartupsMarketplace({ search, savedIds, onToggleSave, onRequestIntro, o
             s={{...s, onViewProfile: () => onViewProfile?.(s)}} 
             saved={savedIds.has(s.id)} 
             onSave={() => onToggleSave(s.id)} 
+            alwaysShowIntelligence={true}
           />
         ))}
       </div>
