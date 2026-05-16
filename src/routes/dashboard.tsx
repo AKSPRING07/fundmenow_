@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Sparkles, Compass, Bookmark, Users, Settings,
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
-  Inbox, CheckCircle2, XCircle, Clock, Building2, MessageSquare, Video,
+  Inbox, CheckCircle2, Check, XCircle, Clock, Building2, MessageSquare, Video,
   ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -1028,6 +1028,7 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
   ];
 
   const handleVerify = () => {
+    onVerify(false); // Reset status to show animation
     setVerifying(true);
     setStep(0);
     
@@ -1065,6 +1066,11 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
     setSavedMsg("Operational profile updated");
     setTimeout(() => setSavedMsg(""), 3000);
     window.dispatchEvent(new Event('profileUpdated'));
+    
+    // Always trigger verification engine on submit
+    if (!verifying) {
+      handleVerify();
+    }
   };
 
   return (
@@ -1222,8 +1228,13 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
               </section>
 
               <div className="flex items-center justify-between pt-4">
-                <button type="submit" className="group flex items-center gap-2 rounded-2xl bg-primary px-10 py-4 text-sm font-bold text-white transition-smooth shadow-glow hover:scale-[1.02]">
-                  Submit for Accreditation
+                <button 
+                  type="submit" 
+                  disabled={verifying}
+                  className="group flex items-center gap-2 rounded-2xl bg-primary px-10 py-4 text-sm font-bold text-white transition-smooth shadow-glow hover:scale-[1.02] disabled:opacity-50"
+                >
+                  {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {verifying ? "Processing..." : "Submit for Accreditation"}
                 </button>
                 {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
               </div>
@@ -1358,8 +1369,13 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
               </section>
 
               <div className="flex items-center justify-between pt-4">
-                <button type="submit" className="group flex items-center gap-2 rounded-2xl bg-foreground px-10 py-4 text-sm font-bold text-background transition-smooth hover:opacity-90 hover:scale-[1.02]">
-                  Submit Startup Verification
+                <button 
+                  type="submit" 
+                  disabled={verifying}
+                  className="group flex items-center gap-2 rounded-2xl bg-foreground px-10 py-4 text-sm font-bold text-background transition-smooth hover:opacity-90 hover:scale-[1.02] disabled:opacity-50"
+                >
+                  {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {verifying ? "Processing..." : "Submit Startup Verification"}
                 </button>
                 {savedMsg && <span className="text-sm font-medium text-success flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4" /> {savedMsg}</span>}
               </div>
@@ -1387,9 +1403,9 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
               return (
                 <div key={s.name} className="group flex items-start gap-4">
                   <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-smooth ${
-                    isDone ? "border-success bg-success text-white" : isActive ? "border-primary bg-primary/10 text-primary animate-pulse" : "border-border text-muted-foreground"
+                    isDone ? "border-success bg-success text-white" : isActive ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground/40"
                   }`}>
-                    {isDone ? "✓" : i + 1}
+                    {isDone ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : isActive ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   </div>
                   <div className="flex-1">
                     <div className={`text-xs font-bold transition-smooth ${isDone ? "text-foreground" : isActive ? "text-primary" : "text-muted-foreground"}`}>
@@ -1397,7 +1413,7 @@ function Settings_({ profile, user, isVerified, onVerify }: { profile: any; user
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5 opacity-60">{s.desc}</div>
                   </div>
-                  {isDone && <Activity className="h-3 w-3 text-success/40" />}
+                  {(isDone || isActive) && <Activity className={`h-3 w-3 ${isDone ? "text-success/40" : "text-primary animate-pulse"}`} />}
                 </div>
               );
             })}
