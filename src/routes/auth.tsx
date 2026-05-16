@@ -43,7 +43,8 @@ function AuthPage() {
     setLoading(true);
     try {
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
+        // Try sign up first
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -51,14 +52,40 @@ function AuthPage() {
             data: { role, full_name: name, company_name: company },
           },
         });
-        if (error) throw error;
-        toast.success("Account created! Redirecting…");
-        navigate({ to: "/dashboard" });
+
+        if (signUpError) {
+          // If already registered, try to sign in and then add the profile
+          if (signUpError.message.includes("already registered")) {
+            const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+            if (signInError) throw signInError;
+            
+            // Successfully signed in, now ensure the profile for this role exists
+            const { data: user } = await supabase.auth.getUser();
+            if (user.user) {
+              await supabase.from("profiles").upsert({
+                id: user.user.id,
+                role: role as any,
+                full_name: name,
+                company_name: company,
+              });
+            }
+          } else {
+            throw signUpError;
+          }
+        }
+        
+        localStorage.setItem("ventura_active_role", role);
+        toast.success(`Account ready as ${role}! Redirecting…`);
+        navigate({ to: "/dashboard", search: { role } });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        toast.success("Welcome back!");
-        navigate({ to: "/dashboard" });
+        
+        // Store the active role for this session to separate the "Account" experience
+        localStorage.setItem("ventura_active_role", role);
+        
+        toast.success(`Welcome back as ${role === 'investor' ? 'an Investor' : 'a Startup'}!`);
+        navigate({ to: "/dashboard", search: { role } });
       }
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");

@@ -93,8 +93,9 @@ const INVESTORS: any[] = [
 ];
 
 function DashboardPage() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile: dbProfile, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { role: urlRole } = Route.useSearch() as any;
   const [tab, setTab] = useState<Tab>("dashboard");
   const [search, setSearch] = useState("");
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
@@ -110,7 +111,7 @@ function DashboardPage() {
     if (!loading && !user) navigate({ to: "/auth", search: { role: "startup", mode: "signin" } });
   }, [loading, user, navigate]);
 
-  if (loading || !user || !profile) {
+  if (loading || !user || !dbProfile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -118,7 +119,17 @@ function DashboardPage() {
     );
   }
 
-  const isInvestor = profile.role === "investor";
+  // Determine role: URL param > localStorage > DB Profile
+  const activeRole = urlRole || localStorage.getItem("ventura_active_role") || dbProfile.role;
+  const isInvestor = activeRole === "investor";
+  
+  // Use a local profile override to keep identities separate
+  const profile = {
+    ...dbProfile,
+    role: activeRole as any,
+    // You could add logic here to swap company_name/full_name from role-specific storage
+  };
+
   const items = isInvestor ? INVESTOR_NAV : STARTUP_NAV;
 
   const toggleSave = (id: string) =>
@@ -1041,18 +1052,61 @@ function Connections({ isInvestor, userId }: { isInvestor: boolean; userId: stri
         )}
       </div>
 
-      {actionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-background p-6 shadow-2xl">
-            <h2 className="font-display text-xl font-bold mb-2">Reason to {actionModal.action === 'accepted' ? 'Accept' : 'Reject'}</h2>
-            <textarea value={actionReason} onChange={e => setActionReason(e.target.value)} rows={3} className="mt-4 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" placeholder="Provide a reason..." />
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setActionModal(null)} className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground border border-border hover:bg-accent">Cancel</button>
-              <button onClick={handleActionSubmit} className="rounded-lg bg-gradient-primary px-5 py-2 text-sm font-semibold text-primary-foreground shadow-elegant hover:shadow-glow">Submit</button>
-            </div>
+      <AnimatePresence>
+        {actionModal && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={() => setActionModal(null)}>
+            <motion.div 
+              initial={{ x: "100%" }} 
+              animate={{ x: 0 }} 
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md h-full bg-background shadow-2xl flex flex-col border-l border-border"
+            >
+              <div className="p-8 border-b border-border bg-gradient-to-br from-background to-muted/30">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-2xl font-bold tracking-tight">Institutional Action</h2>
+                  <button onClick={() => setActionModal(null)} className="text-muted-foreground hover:text-foreground transition-smooth">
+                    <XCircle className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground uppercase tracking-widest font-bold">
+                  Decision: <span className={actionModal.action === 'accepted' ? 'text-success' : 'text-destructive'}>{actionModal.action}</span>
+                </p>
+              </div>
+
+              <div className="flex-1 p-8 overflow-y-auto space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Reasoning & Context *</label>
+                  <textarea 
+                    value={actionReason} 
+                    onChange={e => setActionReason(e.target.value)} 
+                    rows={6} 
+                    className="w-full rounded-2xl border border-border bg-muted/20 px-4 py-4 text-sm focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/5 transition-smooth" 
+                    placeholder="Provide professional reasoning for this decision..." 
+                  />
+                  <p className="mt-2 text-[10px] text-muted-foreground italic">This reasoning will be visible to the requester in their activity feed.</p>
+                </div>
+              </div>
+
+              <div className="p-8 border-t border-border bg-card/30 flex gap-4">
+                <button 
+                  onClick={handleActionSubmit} 
+                  className="flex-1 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-all active:scale-95"
+                >
+                  Confirm Decision
+                </button>
+                <button 
+                  onClick={() => setActionModal(null)} 
+                  className="rounded-2xl border border-border px-8 py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1802,201 +1856,184 @@ function IntroRequestModal({
 
   const runAIAnalysis = () => {
     setAnalyzing(true);
-    // Simulating deep analysis
     setTimeout(() => {
       setAnalysisResult({
         score: Math.floor(Math.random() * (98 - 85) + 85),
         details: [
-          "Zero legal disputes found in public records",
-          "Entity compliance verified with registrar",
-          "Project scalability aligns with market thesis",
-          "Founder background verified via institutional logs"
+          "Zero legal disputes found",
+          "Entity compliance verified",
+          "Scalability aligns with thesis",
+          "Founder background verified"
         ]
       });
       setAnalyzing(false);
-      toast.success("AI Analysis Complete", {
-        description: "Startup background and project idea have been verified."
-      });
-    }, 2500);
+      toast.success("AI Analysis Complete");
+    }, 2000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl flex flex-col md:flex-row border border-border/50">
-        {/* Left Sidebar - Profile & AI Intelligence */}
-        <div className="bg-muted/40 p-8 md:w-1/3 flex flex-col items-center border-b md:border-b-0 md:border-r border-border/50">
-          <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-navy font-display text-3xl font-bold text-navy-foreground mb-4 shadow-elegant">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div 
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl h-full bg-background shadow-2xl flex flex-col md:flex-row border-l border-border"
+      >
+        {/* Left Sidebar */}
+        <div className="bg-muted/30 p-8 md:w-72 shrink-0 flex flex-col items-center border-b md:border-b-0 md:border-r border-border/50">
+          <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-navy font-display text-2xl font-bold text-navy-foreground mb-4 shadow-elegant">
             {target.initials}
           </div>
-          <h2 className="font-display text-2xl font-bold tracking-tight">{target.name || target.firm}</h2>
-          <p className="text-sm text-muted-foreground font-medium mt-1 uppercase tracking-wider">{target.sector || target.focus}</p>
+          <h2 className="font-display text-xl font-bold tracking-tight text-center leading-tight">{target.name || target.firm}</h2>
+          <p className="text-[9px] text-muted-foreground font-bold mt-1.5 uppercase tracking-widest">{target.sector || target.focus}</p>
           
-          <div className="mt-8 w-full rounded-2xl bg-background/80 border border-border/40 p-5 shadow-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Stage / Ask</div>
-                <div className="font-bold text-sm">{target.stage || target.ticket}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Match</div>
-                <div className="font-bold text-sm text-primary">{target.match}%</div>
+          <div className="mt-6 w-full space-y-3">
+            <div className="rounded-xl bg-background/80 border border-border/40 p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Stage</div>
+                  <div className="font-bold text-[10px]">{target.stage || target.ticket}</div>
+                </div>
+                <div>
+                  <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Match</div>
+                  <div className="font-bold text-[10px] text-primary">{target.match}%</div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* AI Possibility Circle - Investor Only */}
-          {isInvestor && (
-            <div className="mt-8 w-full flex flex-col items-center">
-              <button 
-                onClick={runAIAnalysis}
-                disabled={analyzing}
-                className="group relative flex h-32 w-32 items-center justify-center"
-              >
-                <div className={`absolute inset-0 rounded-full border-4 ${analyzing ? 'border-primary border-t-transparent animate-spin' : 'border-primary/20'}`} />
-                {analysisResult ? (
-                  <div className="flex flex-col items-center animate-fade-in">
-                    <span className="text-3xl font-bold text-primary">{analysisResult.score}%</span>
-                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">AI Probability</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center transition-transform group-hover:scale-110">
-                    <Zap className={`h-8 w-8 ${analyzing ? 'text-primary/40' : 'text-primary'}`} />
-                    <span className="mt-2 text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Check Possibility</span>
+            {isInvestor && (
+              <div className="flex flex-col items-center p-4 rounded-2xl border border-primary/20 bg-primary/5">
+                <button 
+                  onClick={runAIAnalysis}
+                  disabled={analyzing}
+                  className="group relative flex h-20 w-20 items-center justify-center"
+                >
+                  <div className={`absolute inset-0 rounded-full border-4 ${analyzing ? 'border-primary border-t-transparent animate-spin' : 'border-primary/20'}`} />
+                  {analysisResult ? (
+                    <div className="flex flex-col items-center animate-fade-in">
+                      <span className="text-xl font-bold text-primary">{analysisResult.score}%</span>
+                    </div>
+                  ) : (
+                    <Zap className={`h-5 w-5 ${analyzing ? 'text-primary/40' : 'text-primary'}`} />
+                  )}
+                </button>
+                {analysisResult && (
+                  <div className="mt-3 space-y-1 w-full">
+                    {analysisResult.details.map((detail, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-[8px] text-muted-foreground font-medium">
+                        <CheckCircle2 className="h-2 w-2 text-success shrink-0" />
+                        {detail}
+                      </div>
+                    ))}
                   </div>
                 )}
-              </button>
-              
-              {analysisResult && (
-                <div className="mt-6 space-y-2 animate-fade-in">
-                  {analysisResult.details.map((detail, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-[10px] text-muted-foreground font-medium">
-                      <CheckCircle2 className="h-3 w-3 text-success shrink-0 mt-0.5" />
-                      {detail}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right - Form */}
-        <div className="p-10 md:w-2/3">
-          <div className="flex items-start justify-between">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="p-8 pb-0 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight">Request Intro</h2>
-              <p className="text-sm text-muted-foreground mt-1">Configure your institutional introduction for <span className="text-foreground font-bold">{target.name || target.firm}</span>.</p>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Institutional Introduction</h2>
+              <p className="text-xs text-muted-foreground mt-1">Configure your outreach and schedule your session.</p>
             </div>
           </div>
           
-          <div className="mt-10 space-y-6">
-            {isInvestor ? (
-              <>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Investor Representative Name</label>
-                    <input 
-                      placeholder="e.g. Michael Chen"
-                      value={formData.name} 
-                      onChange={e => setFormData({...formData, name: e.target.value})} 
-                      className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
-                    />
+          <div className="flex-1 overflow-y-auto p-8 pt-6">
+            <div className="space-y-6">
+              {isInvestor ? (
+                <>
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Representative Name</label>
+                      <input 
+                        placeholder="Michael Chen"
+                        value={formData.name} 
+                        onChange={e => setFormData({...formData, name: e.target.value})} 
+                        className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Thesis Focus</label>
+                      <input 
+                        placeholder="Sustainable Infra"
+                        value={formData.domain} 
+                        onChange={e => setFormData({...formData, domain: e.target.value})} 
+                        className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" 
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Thesis Domain of Interest</label>
-                    <input 
-                      placeholder="e.g. Sustainable Infrastructure"
-                      value={formData.domain} 
-                      onChange={e => setFormData({...formData, domain: e.target.value})} 
-                      className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Reason for Introduction</label>
-                  <textarea 
-                    placeholder="Describe your interest in this startup's project idea..."
-                    value={formData.reason} 
-                    onChange={e => setFormData({...formData, reason: e.target.value})} 
-                    rows={4} 
-                    className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Appointment Window (Google Meet)</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <input 
-                      type="datetime-local"
-                      value={formData.appointmentTime} 
-                      onChange={e => setFormData({...formData, appointmentTime: e.target.value})} 
-                      className="w-full rounded-xl border border-border bg-muted/30 py-3 pl-12 pr-4 text-sm font-medium transition-smooth focus:border-primary focus:bg-background focus:outline-none" 
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Strategic Context</label>
+                    <textarea 
+                      placeholder="Why request this introduction?"
+                      value={formData.reason} 
+                      onChange={e => setFormData({...formData, reason: e.target.value})} 
+                      rows={3} 
+                      className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none resize-none transition-smooth" 
                     />
                   </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Company Name</label>
-                    <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium focus:border-primary focus:bg-background focus:outline-none" />
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Session Window (Google Meet)</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input 
+                        type="datetime-local"
+                        value={formData.appointmentTime} 
+                        onChange={e => setFormData({...formData, appointmentTime: e.target.value})} 
+                        className="w-full rounded-xl border border-border bg-muted/20 py-3 pl-12 pr-4 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" 
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Logo URL</label>
-                    <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Venture Name</label>
+                      <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="Company Name" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Current Raise</label>
+                      <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} placeholder="$2M Seed" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Official Address</label>
-                  <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Strategic Reason for Intro</label>
-                  <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Expected Allocation/Funding</label>
-                  <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary focus:bg-background focus:outline-none" />
-                </div>
-              </>
-            )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Headquarters Address</label>
+                    <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder="Operational headquarters" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Intro Brief</label>
+                    <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} placeholder="Highlight synergy..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth resize-none" />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="mt-12 flex items-center justify-end gap-4">
-            <button 
-              onClick={onClose} 
-              className="rounded-xl px-6 py-3 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
-            >
-              Cancel
-            </button>
+          <div className="p-6 border-t border-border bg-card/30 flex items-center justify-end gap-3">
+            <button onClick={onClose} className="rounded-xl px-6 py-3 text-xs font-bold text-muted-foreground hover:bg-muted transition-smooth">Discard</button>
             <button 
               onClick={() => {
                 if (isInvestor && !formData.appointmentTime) {
-                  toast.error("Appointment required", { description: "Please select a time for the Google Meet intro." });
+                  toast.error("Appointment required");
                   return;
                 }
-                const msg = isInvestor 
-                  ? `Intro scheduled for ${new Date(formData.appointmentTime).toLocaleString()}. Google Meet link sent to both parties.`
-                  : "Intro request sent successfully.";
-                toast.success(isInvestor ? "Appointment Confirmed" : "Request Sent", {
-                  description: msg,
-                });
                 onSubmit(formData);
               }} 
-              className="flex items-center gap-2 rounded-xl bg-foreground px-8 py-3.5 text-sm font-bold text-background transition-all hover:scale-[1.02] active:scale-[0.98] shadow-elegant"
+              className="flex items-center gap-2 rounded-xl bg-gradient-primary px-8 py-3 text-xs font-bold text-primary-foreground transition-all hover:shadow-glow shadow-elegant"
             >
-              {isInvestor ? (
-                <>Schedule Appointment <Video className="h-4 w-4" /></>
-              ) : (
-                <>Send Strategic Request <ArrowUpRight className="h-4 w-4" /></>
-              )}
+              {isInvestor ? <>Schedule Session <Video className="h-4 w-4" /></> : <>Send Intro Request <ArrowUpRight className="h-4 w-4" /></>}
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -2310,263 +2347,311 @@ function AddCompanyModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
   const [formData, setFormData] = useState({ companyName: '', logo: '', address: '', reason: '', expected: '', founderName: '', details: '' });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl animate-fade-up">
-        <div className="bg-gradient-primary p-6 text-center text-primary-foreground">
-          <h2 className="font-display text-2xl font-bold">Register Your Company</h2>
-          <p className="mt-1 text-sm opacity-90">Share your vision with the Ventura ecosystem</p>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div 
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-xl h-full bg-background shadow-2xl flex flex-col border-l border-border"
+      >
+        <div className="bg-gradient-primary p-8 text-primary-foreground relative overflow-hidden shrink-0">
+          <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10 blur-2xl" />
+          <h2 className="font-display text-2xl font-bold tracking-tight">Register Your Company</h2>
+          <p className="mt-1 text-xs opacity-90 max-w-sm leading-relaxed">Connect your venture with global capital partners.</p>
+          <button onClick={onClose} className="absolute right-6 top-6 rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20 transition-smooth">
+            <XCircle className="h-5 w-5" />
+          </button>
         </div>
         
-        <div className="p-8">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Company Name</label>
-                <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="e.g. Acme Corp" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Company Name</label>
+                <input value={formData.companyName} onChange={e => setFormData({...formData, companyName: e.target.value})} placeholder="e.g. Acme Corp" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Founder Name</label>
-                <input value={formData.founderName} onChange={e => setFormData({...formData, founderName: e.target.value})} placeholder="e.g. John Doe" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Company Details</label>
-              <textarea value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})} rows={2} placeholder="Briefly describe what your company does..." className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase">Idea for Funding</label>
-              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} placeholder="Why are you seeking funding? What is the main idea?" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Amount You Expect</label>
-                <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} placeholder="e.g. $500,000" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase">Logo URL (Optional)</label>
-                <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} placeholder="https://..." className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Founder Name</label>
+                <input value={formData.founderName} onChange={e => setFormData({...formData, founderName: e.target.value})} placeholder="e.g. John Doe" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
               </div>
             </div>
-          </div>
 
-          <div className="mt-8 flex justify-end gap-3 border-t border-border pt-6">
-            <button onClick={onClose} className="rounded-lg px-6 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
-            <button onClick={() => onSubmit(formData)} className="rounded-lg bg-gradient-primary px-8 py-2 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
-              Add Me
-            </button>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Core Mission & Product</label>
+              <textarea value={formData.details} onChange={e => setFormData({...formData, details: e.target.value})} rows={2} placeholder="Briefly describe the problem you are solving..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth resize-none" />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Investment Thesis / Why Ventura?</label>
+              <textarea value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} rows={3} placeholder="What is your current fundraising goal?" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth resize-none" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Target Allocation</label>
+                <input value={formData.expected} onChange={e => setFormData({...formData, expected: e.target.value})} placeholder="e.g. $500k" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Digital Identity (Logo URL)</label>
+                <input value={formData.logo} onChange={e => setFormData({...formData, logo: e.target.value})} placeholder="https://..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <div className="p-6 border-t border-border bg-card/30 flex items-center gap-4">
+          <button onClick={onClose} className="flex-1 rounded-2xl border border-border py-3.5 text-sm font-bold text-muted-foreground hover:bg-muted transition-smooth">Cancel</button>
+          <button onClick={() => onSubmit(formData)} className="flex-[2] rounded-2xl bg-gradient-primary py-3.5 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
+            Register Venture
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 function InvestorProfileModal({ investor, onClose, onRequestIntro }: { investor: any; onClose: () => void; onRequestIntro: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl animate-fade-up border border-border/50">
-        <div className="relative h-32 bg-gradient-navy">
-          <button onClick={onClose} className="absolute right-6 top-6 rounded-full bg-black/20 p-2 text-white transition-smooth hover:bg-black/40">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div 
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl h-full bg-background shadow-2xl flex flex-col border-l border-border"
+      >
+        <div className="relative h-48 bg-gradient-navy shrink-0">
+          <button onClick={onClose} className="absolute right-6 top-6 z-20 rounded-full bg-black/20 p-2 text-white transition-smooth hover:bg-black/40">
             <XCircle className="h-6 w-6" />
           </button>
-          <div className="absolute -bottom-10 left-10 flex h-24 w-24 items-center justify-center rounded-3xl bg-card border-4 border-background shadow-elegant">
-            <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-navy font-display text-2xl font-bold text-white">
+          <div className="absolute -bottom-10 left-10 flex h-32 w-32 items-center justify-center rounded-3xl bg-card border-4 border-background shadow-elegant z-10">
+            <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-navy font-display text-3xl font-bold text-white">
               {investor.initials}
             </div>
           </div>
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
         </div>
 
-        <div className="mt-16 px-10 pb-10">
+        <div className="flex-1 overflow-y-auto mt-16 px-10 pb-10">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="font-display text-3xl font-bold tracking-tight">{investor.firm}</h2>
-              <div className="mt-1 flex items-center gap-2 text-primary font-bold text-sm">
-                <ShieldCheck className="h-4 w-4" /> Institutional-Grade Partner
+              <div className="mt-1 flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
+                <ShieldCheck className="h-4 w-4" /> Institutional Partner
               </div>
             </div>
             <div className="flex flex-col items-end">
               <TrustScore score={investor.trustScore} label="Trust Index" />
-              <div className="mt-2 text-[10px] font-bold text-success uppercase tracking-widest bg-success/10 px-2 py-0.5 rounded-full">Background Audited</div>
+              <div className="mt-2 text-[10px] font-bold text-success uppercase tracking-[0.2em] bg-success/10 px-2.5 py-1 rounded-full border border-success/20">Audit Verified</div>
             </div>
           </div>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-2">
-            <div className="space-y-4">
-              <div className="rounded-2xl bg-muted/30 p-4 border border-border/50">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Investor Credentials</div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
+          <div className="mt-10 grid gap-8 md:grid-cols-2">
+            <div className="space-y-6">
+              <div className="rounded-2xl bg-muted/30 p-6 border border-border/50 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Partner Credentials</div>
+                <div className="space-y-4">
+                  <div className="flex justify-between border-b border-border/40 pb-2">
                     <span className="text-xs text-muted-foreground">Entity Type</span>
                     <span className="text-xs font-bold">{investor.type}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between border-b border-border/40 pb-2">
                     <span className="text-xs text-muted-foreground">Experience</span>
                     <span className="text-xs font-bold">{investor.experience}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-muted-foreground">Ticket Size</span>
+                    <span className="text-xs text-muted-foreground">Typical Ticket</span>
                     <span className="text-xs font-bold text-primary">{investor.ticket}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10">
-                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Interested Domains</div>
+              <div className="rounded-2xl bg-primary/5 p-6 border border-primary/10 shadow-sm">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-4">Strategic Focus</div>
                 <div className="flex flex-wrap gap-2">
                   {investor.focus.split(' · ').map((f: string) => (
-                    <span key={f} className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary ring-1 ring-inset ring-primary/20">{f}</span>
+                    <span key={f} className="rounded-full bg-white px-3 py-1 text-[10px] font-bold text-primary border border-primary/10 shadow-sm">{f}</span>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Investment Thesis</div>
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Thesis Overview</div>
                 <p className="text-xs text-muted-foreground leading-relaxed italic">
                   "{investor.bio}"
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Verification Roadmap</div>
-                <div className="space-y-2">
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Verification Status</div>
+                <div className="space-y-3">
                   {[
                     { label: "Identity & PAN Audit", status: "Verified" },
                     { label: "Professional Background", status: "Verified" },
                     { label: "Institutional Status", status: "Audited" }
                   ].map((s, idx) => (
                     <div key={idx} className="flex items-center justify-between">
-                      <span className="text-[10px] font-medium">{s.label}</span>
-                      <CheckCircle2 className="h-3 w-3 text-success" />
+                      <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
+                      <div className="flex items-center gap-1.5 text-success font-bold text-[9px] uppercase tracking-wider">
+                        Verified <CheckCircle2 className="h-3 w-3" />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="mt-10 flex gap-4">
-            <button 
-              onClick={onRequestIntro}
-              className="flex-1 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth active:scale-95"
-            >
-              Request Institutional Introduction
-            </button>
-            <button 
-              onClick={onClose}
-              className="rounded-2xl border border-border px-8 py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
-            >
-              Close
-            </button>
-          </div>
         </div>
-      </div>
+
+        <div className="p-8 border-t border-border bg-card/30 flex gap-4">
+          <button 
+            onClick={onRequestIntro}
+            className="flex-1 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-all active:scale-95"
+          >
+            Request Institutional Introduction
+          </button>
+          <button 
+            onClick={onClose}
+            className="rounded-2xl border border-border px-8 py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 function StartupProfileModal({ startup, onClose, onCollaborate }: { startup: any; onClose: () => void; onCollaborate: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl overflow-hidden rounded-[2.5rem] bg-background shadow-2xl animate-fade-up border border-border/50">
-        <div className="flex h-full flex-col md:flex-row">
-          {/* Left - Action Side */}
-          <div className="md:w-1/3 bg-gradient-navy p-10 flex flex-col items-center justify-center text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-white/10 text-white font-display text-3xl font-bold shadow-elegant mb-6 ring-1 ring-white/20">
-              {startup.initials}
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <motion.div 
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-4xl h-full bg-background shadow-2xl flex flex-col md:flex-row border-l border-border"
+      >
+        {/* Left - Brand Side */}
+        <div className="md:w-80 bg-gradient-navy p-12 flex flex-col items-center justify-center text-center shrink-0">
+          <div className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] bg-white/10 text-white font-display text-4xl font-bold shadow-elegant mb-8 ring-1 ring-white/20">
+            {startup.initials}
+          </div>
+          <h3 className="text-white font-display text-3xl font-bold mb-3 tracking-tight">{startup.name}</h3>
+          <p className="text-white/60 text-xs mb-10 leading-relaxed font-medium uppercase tracking-widest">Growth Phase Intelligence</p>
+          
+          <button 
+            onClick={onCollaborate}
+            className="w-full rounded-2xl bg-white px-8 py-4 text-sm font-bold text-navy transition-all hover:scale-105 active:scale-95 shadow-glow shadow-white/20"
+          >
+            Collaborate Now
+          </button>
+          <button 
+            onClick={onClose}
+            className="mt-6 text-xs font-bold text-white/40 hover:text-white/80 transition-smooth uppercase tracking-widest"
+          >
+            Close Profile
+          </button>
+        </div>
+
+        {/* Right - Deep Intelligence */}
+        <div className="flex-1 p-12 overflow-y-auto">
+          <div className="flex justify-between items-start mb-12">
+            <div>
+              <h2 className="font-display text-4xl font-bold tracking-tight mb-3">Venture Intelligence</h2>
+              <div className="flex items-center gap-2 text-success font-bold text-xs uppercase tracking-[0.2em]">
+                <ShieldCheck className="h-4 w-4" /> Strategic Partner Node
+              </div>
             </div>
-            <h3 className="text-white font-display text-2xl font-bold mb-2">{startup.name}</h3>
-            <p className="text-white/60 text-xs mb-8">Join the {startup.name} ecosystem today.</p>
-            
-            <button 
-              onClick={onCollaborate}
-              className="w-full rounded-2xl bg-white px-6 py-4 text-sm font-bold text-navy transition-smooth hover:scale-105 active:scale-95 shadow-glow shadow-white/20"
-            >
-              Collaborate
-            </button>
-            <button 
-              onClick={onClose}
-              className="mt-4 text-xs font-bold text-white/40 hover:text-white/80 transition-smooth"
-            >
-              Back to Ecosystem
-            </button>
+            <div className="flex flex-col items-end">
+              <TrustScore score={startup.match} label="Growth Index" />
+              <div className="mt-2 text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/5 px-2.5 py-1 rounded-full border border-primary/20">High Potential</div>
+            </div>
           </div>
 
-          {/* Right - Content Side */}
-          <div className="flex-1 p-12 overflow-auto max-h-[80vh]">
-            <div className="flex justify-between items-start mb-10">
-              <div>
-                <h2 className="font-display text-4xl font-bold tracking-tight mb-2">Company Intelligence</h2>
-                <div className="flex items-center gap-2 text-success font-bold text-xs">
-                  <ShieldCheck className="h-4 w-4" /> Strategic Partner Network
-                </div>
-              </div>
-              <TrustScore score={startup.match} label="Growth Index" />
-            </div>
-
-            <div className="grid gap-8 sm:grid-cols-2">
-              <div className="space-y-6">
-                <div className="rounded-2xl bg-muted/30 p-6 border border-border/50">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Official Location</div>
-                  <div className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <div className="text-sm font-semibold leading-relaxed">
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="space-y-8">
+              <div className="rounded-2xl bg-muted/30 p-8 border border-border/50 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Institutional Hub</div>
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Headquarters</div>
+                    <div className="text-sm font-bold leading-relaxed">
                       {startup.address || startup.location}
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="rounded-2xl bg-primary/5 p-6 border border-primary/10">
-                  <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-4">Operational Domain</div>
-                  <div className="flex items-start gap-3">
-                    <Briefcase className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="rounded-2xl bg-primary/5 p-8 border border-primary/10 shadow-sm">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-6 border-b border-primary/20 pb-2">Operational Sector</div>
+                <div className="flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <Briefcase className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Market Vertical</div>
                     <div className="text-sm font-bold">{startup.domain || startup.sector}</div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-6">
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Market Experience</div>
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-4 w-4 text-primary" />
+            <div className="space-y-8">
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Market Traction</div>
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center text-success shrink-0">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Experience</div>
                     <div className="text-lg font-bold text-foreground">{startup.experience || '2+ Years'}</div>
                   </div>
-                  <div className="mt-2 text-[10px] text-muted-foreground">Verified institutional track record.</div>
                 </div>
+                <div className="mt-4 text-[10px] text-muted-foreground font-medium italic">Verified institutional track record with consistent growth.</div>
+              </div>
 
-                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Core Statistics</div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Current Ask</span>
-                      <span className="font-bold">{startup.ask}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Stage</span>
-                      <span className="font-bold">{startup.stage}</span>
-                    </div>
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Raise Intelligence</div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-medium uppercase tracking-widest">Active Ask</span>
+                    <span className="font-bold text-primary text-lg">{startup.ask}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground font-medium uppercase tracking-widest">Current Stage</span>
+                    <span className="font-bold bg-muted px-3 py-1 rounded-lg border border-border/50">{startup.stage}</span>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-10 rounded-3xl bg-navy p-8 text-navy-foreground flex items-center justify-between">
-              <div className="max-w-xs">
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2">Request Status</div>
-                <div className="text-sm font-medium">This company is currently open for strategic collaborations and institutional partnerships.</div>
-              </div>
-              <button 
-                onClick={onCollaborate}
-                className="rounded-xl bg-white/10 px-6 py-2.5 text-xs font-bold backdrop-blur-md transition-smooth hover:bg-white/20"
-              >
-                Send Request
-              </button>
+          <div className="mt-12 rounded-[2rem] bg-navy p-10 text-navy-foreground flex items-center justify-between shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 h-32 w-32 translate-x-10 -translate-y-10 rounded-full bg-white/5 blur-3xl" />
+            <div className="max-w-md relative z-10">
+              <div className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-3">Strategic Status</div>
+              <div className="text-lg font-medium leading-relaxed">This venture is currently open for strategic collaborations and institutional partnerships.</div>
             </div>
+            <button 
+              onClick={onCollaborate}
+              className="relative z-10 rounded-2xl bg-white/10 px-8 py-4 text-sm font-bold backdrop-blur-xl border border-white/20 transition-all hover:bg-white/20 hover:scale-105 active:scale-95"
+            >
+              Express Interest
+            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -2859,99 +2944,112 @@ function MoveStatusModal({ move, onClose, onConfirm }: { move: any; onClose: () 
   const stage = PIPELINE_STAGES.find(s => s.id === move.to);
   
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-    >
+    <div className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <motion.div 
-        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-        className="w-full max-w-md overflow-hidden rounded-[2.5rem] bg-background shadow-2xl border border-border/50 p-8"
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg h-full bg-background shadow-2xl flex flex-col border-l border-border"
       >
-        <div className="flex items-center gap-3 mb-6">
-          <div className={`h-12 w-12 rounded-2xl ${stage?.color} flex items-center justify-center text-white shadow-lg`}>
-            <TrendingUp className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight">Stage Update: {stage?.label}</h2>
-            <p className="text-xs text-muted-foreground">Confirm the transition for <span className="font-bold text-foreground">{move.item.name}</span></p>
-          </div>
-        </div>
-
-        <div className="space-y-4 mb-8">
-          {move.to === 'discussion' && (
-            <>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Meeting Date</label>
-                <input type="datetime-local" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Initial Thesis</label>
-                <textarea placeholder="Key reasons for interest..." className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm h-24 focus:border-primary outline-none resize-none" />
-              </div>
-            </>
-          )}
-
-          {move.to === 'due_diligence' && (
-            <>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Required Documents</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Cap Table', 'Financials', 'Tech Audit', 'Legal KYC'].map(doc => (
-                    <div key={doc} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 border border-border/50">
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                      <span className="text-[10px] font-bold">{doc}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Lead Analyst</label>
-                <select className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none">
-                  <option>Principal Partner</option>
-                  <option>Senior Analyst</option>
-                  <option>Legal Counsel</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          {move.to === 'invested' && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Final Amount</label>
-                  <input placeholder="$250,000" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Equity %</label>
-                  <input placeholder="8.5%" className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm focus:border-primary outline-none" />
-                </div>
-              </div>
-              <div className="rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 p-6 text-center cursor-pointer hover:bg-primary/10 transition-colors">
-                <Upload className="h-6 w-6 text-primary mx-auto mb-2" />
-                <span className="text-[10px] font-bold text-primary uppercase">Upload Signed Term Sheet</span>
-              </div>
-            </>
-          )}
-
-          {(move.to === 'started' || move.to === 'active' || move.to === 'finished') && (
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Internal Notes</label>
-              <textarea placeholder="Update context for this stage move..." className="w-full rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm h-32 focus:border-primary outline-none resize-none" />
+        <div className={`p-8 ${stage?.color} text-white relative overflow-hidden shrink-0`}>
+          <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10 blur-2xl" />
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg border border-white/20">
+              <TrendingUp className="h-6 w-6 text-white" />
             </div>
-          )}
+            <div>
+              <h2 className="font-display text-xl font-bold tracking-tight">Stage Update</h2>
+              <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-0.5">Target: {stage?.label}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="absolute right-6 top-6 rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20 transition-smooth">
+            <XCircle className="h-5 w-5" />
+          </button>
         </div>
 
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 rounded-2xl border border-border py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted">
-            Cancel
-          </button>
-          <button onClick={onConfirm} className={`flex-1 rounded-2xl py-4 text-sm font-bold text-white shadow-elegant transition-smooth hover:shadow-glow ${stage?.color}`}>
-            Confirm Move
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border/40">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Active Deal</div>
+            <div className="font-bold text-base">{move.item.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Moving from <span className="font-semibold text-foreground">{PIPELINE_STAGES.find(s => s.id === move.from)?.label}</span> to <span className="font-semibold text-foreground">{stage?.label}</span></div>
+          </div>
+
+          <div className="space-y-6">
+            {move.to === 'discussion' && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Meeting Window</label>
+                  <input type="datetime-local" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Meeting Agenda / Thesis</label>
+                  <textarea placeholder="Key reasons for interest..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm h-28 focus:border-primary focus:bg-background outline-none resize-none transition-smooth" />
+                </div>
+              </>
+            )}
+
+            {move.to === 'due_diligence' && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Audit Checklist</label>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {['Cap Table Audit', 'Financial Verification', 'Tech Stack Review', 'Legal Compliance'].map(doc => (
+                      <div key={doc} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/20 border border-border/40 group hover:border-primary/30 transition-smooth cursor-pointer">
+                        <div className="h-3.5 w-3.5 rounded border border-border group-hover:border-primary transition-smooth" />
+                        <span className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground">{doc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Lead Institutional Analyst</label>
+                  <select className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth appearance-none">
+                    <option>Principal Partner</option>
+                    <option>Senior Investment Analyst</option>
+                    <option>Legal Counsel</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {move.to === 'invested' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Final Commit</label>
+                    <input placeholder="$250,000" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Post-Money %</label>
+                    <input placeholder="8.5%" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary focus:bg-background outline-none transition-smooth" />
+                  </div>
+                </div>
+                <div className="rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 p-6 text-center cursor-pointer hover:bg-primary/10 transition-all group">
+                  <Upload className="h-6 w-6 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-widest">Upload Term Sheet</span>
+                </div>
+              </>
+            )}
+
+            {(move.to === 'started' || move.to === 'active' || move.to === 'finished') && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Institutional Notes</label>
+                <textarea placeholder="Record internal context..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm h-36 focus:border-primary focus:bg-background outline-none resize-none transition-smooth" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-border bg-card/30 flex items-center gap-3">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-border py-3 text-xs font-bold text-muted-foreground hover:bg-muted transition-smooth">Cancel</button>
+          <button onClick={onConfirm} className={`flex-[2] rounded-xl py-3 text-xs font-bold text-white shadow-elegant hover:shadow-glow transition-all active:scale-95 ${stage?.color}`}>
+            Confirm Update
           </button>
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -2966,98 +3064,102 @@ function CreateDealModal({ onClose, onSubmit }: { onClose: () => void; onSubmit:
   });
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
-    >
+    <div className="fixed inset-0 z-[100] flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <motion.div 
-        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-        className="w-full max-w-2xl rounded-[3rem] bg-background shadow-2xl border border-border/50 p-12 relative"
+        initial={{ x: "100%" }} 
+        animate={{ x: 0 }} 
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-xl h-full bg-background shadow-2xl flex flex-col border-l border-border"
       >
-        <button onClick={onClose} className="absolute right-10 top-10 text-muted-foreground hover:text-foreground">
-          <XCircle className="h-8 w-8" />
-        </button>
+        <div className="bg-gradient-navy p-8 text-white relative overflow-hidden shrink-0">
+          <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10 blur-2xl" />
+          <h2 className="font-display text-2xl font-bold tracking-tight">Create New Deal</h2>
+          <p className="mt-1 text-xs text-white/70">Initialize a new venture entry in your pipeline.</p>
+          <button onClick={onClose} className="absolute right-6 top-6 rounded-full bg-white/10 p-1.5 text-white hover:bg-white/20 transition-smooth">
+            <XCircle className="h-5 w-5" />
+          </button>
+        </div>
 
-        <h2 className="font-display text-4xl font-bold tracking-tight mb-2">Create New Deal</h2>
-        <p className="text-muted-foreground text-sm mb-10">Add a new venture to your investment pipeline and start tracking.</p>
-
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="flex-1 overflow-y-auto p-8">
           <div className="space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Startup Name</label>
-              <input 
-                value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
-                placeholder="e.g. Helix Bio" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Founder Details</label>
-              <input 
-                value={formData.founder} onChange={e => setFormData({...formData, founder: e.target.value})}
-                placeholder="Full Name" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Industry</label>
-                <select 
-                  value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})}
-                  className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none"
-                >
-                  <option>Fintech</option>
-                  <option>Healthtech</option>
-                  <option>AI / ML</option>
-                  <option>Consumer</option>
-                  <option>SaaS</option>
-                </select>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Startup Identity</label>
+                  <input 
+                    value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+                    placeholder="e.g. Helix Bio" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary outline-none transition-all focus:bg-background" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Founder Representative</label>
+                  <input 
+                    value={formData.founder} onChange={e => setFormData({...formData, founder: e.target.value})}
+                    placeholder="Full Name" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary outline-none transition-all focus:bg-background" 
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sector</label>
+                    <select 
+                      value={formData.industry} onChange={e => setFormData({...formData, industry: e.target.value})}
+                      className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary outline-none appearance-none"
+                    >
+                      <option>Fintech</option>
+                      <option>Healthtech</option>
+                      <option>AI / ML</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Priority</label>
+                    <select 
+                      value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
+                      className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary outline-none appearance-none"
+                    >
+                      <option>Low</option>
+                      <option>Medium</option>
+                      <option>High</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Priority</label>
-                <select 
-                  value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
-                  className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none"
-                >
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
-                  <option>Critical</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <div className="space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Funding Requirement</label>
-              <input 
-                value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
-                placeholder="$500K - $1M" className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm focus:border-primary outline-none transition-all focus:ring-4 focus:ring-primary/5" 
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest ml-1">Opportunity Brief</label>
-              <textarea 
-                value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                placeholder="Summary of the thesis..." className="w-full rounded-2xl border border-border bg-muted/20 px-5 py-4 text-sm h-[132px] focus:border-primary outline-none resize-none transition-all focus:ring-4 focus:ring-primary/5" 
-              />
+              <div className="space-y-5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Funding Target</label>
+                  <input 
+                    value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
+                    placeholder="$500K - $1M" className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm focus:border-primary outline-none transition-all focus:bg-background" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Thesis / Brief</label>
+                  <textarea 
+                    value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
+                    placeholder="Summary of the opportunity..." className="w-full rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm h-[100px] focus:border-primary outline-none resize-none transition-all focus:bg-background" 
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 flex gap-4">
-          <button onClick={onClose} className="flex-1 rounded-[1.5rem] border border-border py-5 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted">
-            Discard Entry
+        <div className="p-6 border-t border-border bg-card/30 flex items-center gap-3">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-border py-3.5 text-xs font-bold text-muted-foreground transition-smooth hover:bg-muted">
+            Discard
           </button>
           <button 
             disabled={!formData.name}
             onClick={() => onSubmit(formData)} 
-            className="flex-1 rounded-[1.5rem] bg-gradient-primary py-5 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
+            className="flex-[2] rounded-xl bg-gradient-navy py-3.5 text-xs font-bold text-white shadow-elegant hover:shadow-glow transition-smooth disabled:opacity-50"
           >
             Launch Deal Entry
           </button>
         </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 

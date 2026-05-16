@@ -45,15 +45,23 @@ export function useAuth() {
   }, []);
 
   async function loadProfile(uid: string) {
+    const activeRole = localStorage.getItem("ventura_active_role");
+    
+    // Fetch all profiles for this user
     const { data } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", uid)
-      .maybeSingle();
-    if (data) setProfile(data as Profile);
+      .eq("id", uid);
+      
+    if (data && data.length > 0) {
+      // Find the one matching the active role, or fallback to the first one
+      const matched = data.find(p => p.role === activeRole) || data[0];
+      setProfile(matched as Profile);
+    }
   }
 
   async function signOut() {
+    localStorage.removeItem("ventura_active_role");
     await supabase.auth.signOut();
   }
 
