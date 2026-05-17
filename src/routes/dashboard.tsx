@@ -80,12 +80,12 @@ const INVESTOR_NAV = [
 ] as const;
 
 const STARTUPS: any[] = [
-  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96, address: "88 Binney St, Cambridge, MA", experience: "4 Years", domain: "Biotechnology & Therapeutics", verified: true },
-  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92, address: "221 Main St, San Francisco, CA", experience: "1 Year", domain: "Artificial Intelligence Infrastructure", verified: false },
-  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88, address: "10 Lower Thames St, London", experience: "3 Years", domain: "Decentralized Finance & Ledger Tech", verified: true },
-  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85, address: "Lobeckstraße 36, Berlin", experience: "2 Years", domain: "Carbon Capture & Climate Intelligence", verified: false },
-  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81, address: "701 Brazos St, Austin, TX", experience: "5 Years", domain: "Renewable Energy Grid Management", verified: false },
-  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78, address: "MG Road, Bangalore, KA", experience: "2 Years", domain: "Enterprise Resource Planning", verified: false },
+  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96, address: "88 Binney St, Cambridge, MA", experience: "4 Years", domain: "Biotechnology & Therapeutics", website: "https://helixbio.com", verified: true },
+  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92, address: "221 Main St, San Francisco, CA", experience: "1 Year", domain: "Artificial Intelligence Infrastructure", website: "https://northwaveai.io", verified: false },
+  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88, address: "10 Lower Thames St, London", experience: "3 Years", domain: "Decentralized Finance & Ledger Tech", website: "https://ledgerloop.finance", verified: true },
+  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85, address: "Lobeckstraße 36, Berlin", experience: "2 Years", domain: "Carbon Capture & Climate Intelligence", website: "", verified: false },
+  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81, address: "701 Brazos St, Austin, TX", experience: "5 Years", domain: "Renewable Energy Grid Management", website: "https://atlasgrid.energy", verified: false },
+  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78, address: "MG Road, Bangalore, KA", experience: "2 Years", domain: "Enterprise Resource Planning", website: "", verified: false },
 ];
 
 const INVESTORS: any[] = [
@@ -2699,6 +2699,29 @@ function StartupProfileModal({ startup, onClose, onCollaborate }: { startup: any
                   </div>
                 </div>
               </div>
+
+              {/* Website — shown only if startup provides a URL */}
+              {startup.website && (
+                <div className="rounded-2xl bg-emerald-500/5 p-5 border border-emerald-500/20 shadow-sm">
+                  <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-3 border-b border-emerald-500/20 pb-1.5">Company Website</div>
+                  <div className="flex items-start gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Globe className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mb-0.5">Official URL</div>
+                      <a
+                        href={startup.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-500 transition-colors truncate block underline underline-offset-2"
+                      >
+                        {startup.website.replace(/^https?:\/\//, '')}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
