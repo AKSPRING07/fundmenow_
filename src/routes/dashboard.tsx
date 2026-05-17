@@ -28,14 +28,18 @@ import {
   Bell, SlidersHorizontal, Search, LogOut, Rocket, Briefcase, Heart,
   TrendingUp, MapPin, Loader2, ArrowUpRight, Plus, BarChart3,
   Inbox, CheckCircle2, Check, XCircle, Clock, Building2, MessageSquare, Video,
-  ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar,
+  ShieldCheck, Zap, Activity, Globe, Shield, Lock, Award, PieChart, Info, Calendar, ShieldAlert,
   MoreVertical, ChevronRight, FileText, Upload, DollarSign, Percent, LogIn, Filter
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-type IntroRequest = Database["public"]["Tables"]["intro_requests"]["Row"];
+type IntroRequest = Database["public"]["Tables"]["intro_requests"]["Row"] & {
+  appointment_time?: string | null;
+  founder_name?: string | null;
+  details?: string | null;
+};
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -47,10 +51,10 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings" | "startups";
+type Tab = "dashboard" | "for-you" | "discover" | "saved" | "requests" | "connections" | "preferences" | "notifications" | "settings" | "startups" | "appointments";
 
-type Startup = { id: string; name: string; initials: string; sector: string; stage: string; location: string; ask: string; match: number };
-type Investor = { id: string; name: string; initials: string; firm: string; focus: string; ticket: string; stage: string; portfolio: number; match: number };
+type Startup = { id: string; name: string; initials: string; sector: string; stage: string; location: string; ask: string; match: number; verified?: boolean };
+type Investor = { id: string; name: string; initials: string; firm: string; focus: string; ticket: string; stage: string; portfolio: number; match: number; verified?: boolean };
 
 const STARTUP_NAV = [
   { id: "dashboard", label: "Fundraising Home", icon: LayoutDashboard },
@@ -76,20 +80,20 @@ const INVESTOR_NAV = [
 ] as const;
 
 const STARTUPS: any[] = [
-  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96, address: "88 Binney St, Cambridge, MA", experience: "4 Years", domain: "Biotechnology & Therapeutics" },
-  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92, address: "221 Main St, San Francisco, CA", experience: "1 Year", domain: "Artificial Intelligence Infrastructure" },
-  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88, address: "10 Lower Thames St, London", experience: "3 Years", domain: "Decentralized Finance & Ledger Tech" },
-  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85, address: "Lobeckstraße 36, Berlin", experience: "2 Years", domain: "Carbon Capture & Climate Intelligence" },
-  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81, address: "701 Brazos St, Austin, TX", experience: "5 Years", domain: "Renewable Energy Grid Management" },
-  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78, address: "MG Road, Bangalore, KA", experience: "2 Years", domain: "Enterprise Resource Planning" },
+  { id: "s1", name: "Helix Bio", initials: "HB", sector: "Healthtech", stage: "Seed", location: "Boston, US", ask: "$2M", match: 96, address: "88 Binney St, Cambridge, MA", experience: "4 Years", domain: "Biotechnology & Therapeutics", verified: true },
+  { id: "s2", name: "Northwave AI", initials: "NW", sector: "AI · Infra", stage: "Pre-seed", location: "SF, US", ask: "$800K", match: 92, address: "221 Main St, San Francisco, CA", experience: "1 Year", domain: "Artificial Intelligence Infrastructure", verified: false },
+  { id: "s3", name: "LedgerLoop", initials: "LL", sector: "Fintech", stage: "Series A", location: "London, UK", ask: "$6M", match: 88, address: "10 Lower Thames St, London", experience: "3 Years", domain: "Decentralized Finance & Ledger Tech", verified: true },
+  { id: "s4", name: "Forma Labs", initials: "FL", sector: "Climate", stage: "Seed", location: "Berlin, DE", ask: "$3M", match: 85, address: "Lobeckstraße 36, Berlin", experience: "2 Years", domain: "Carbon Capture & Climate Intelligence", verified: false },
+  { id: "s5", name: "Atlas Grid", initials: "AG", sector: "Energy", stage: "Series A", location: "Austin, US", ask: "$8M", match: 81, address: "701 Brazos St, Austin, TX", experience: "5 Years", domain: "Renewable Energy Grid Management", verified: false },
+  { id: "s6", name: "Quanta SaaS", initials: "QS", sector: "B2B SaaS", stage: "Seed", location: "Bangalore, IN", ask: "$1.5M", match: 78, address: "MG Road, Bangalore, KA", experience: "2 Years", domain: "Enterprise Resource Planning", verified: false },
 ];
 
 const INVESTORS: any[] = [
-  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95, type: "Venture Capital Firm", experience: "12+ Years", bio: "Leading early-stage investments in the next generation of AI-driven infrastructure and financial ecosystems.", trustScore: 98 },
-  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91, type: "VC / Family Office", experience: "15+ Years", bio: "Strategic capital for breakthrough innovations in healthcare delivery and biotechnology.", trustScore: 94 },
-  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87, type: "Institutional VC", experience: "8+ Years", bio: "Accelerating the growth of enterprise software solutions with capital and operational expertise.", trustScore: 92 },
-  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82, type: "Angel Syndicate", experience: "5+ Years", bio: "A network of mission-driven angels investing in climate resilience and renewable energy tech.", trustScore: 89 },
-  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76, type: "Syndicate", experience: "7+ Years", bio: "Partnering with bold founders building the future of consumer engagement and direct-to-consumer brands.", trustScore: 85 },
+  { id: "i1", name: "Northwind Capital", initials: "NC", firm: "Northwind Capital", focus: "AI · Fintech", ticket: "$250K – $2M", stage: "Pre-seed → Seed", portfolio: 47, match: 95, type: "Venture Capital Firm", experience: "12+ Years", bio: "Leading early-stage investments in the next generation of AI-driven infrastructure and financial ecosystems.", trustScore: 98, verified: true },
+  { id: "i2", name: "Halo Ventures", initials: "HV", firm: "Halo Ventures", focus: "Healthtech · Bio", ticket: "$500K – $5M", stage: "Seed → Series A", portfolio: 62, match: 91, type: "VC / Family Office", experience: "15+ Years", bio: "Strategic capital for breakthrough innovations in healthcare delivery and biotechnology.", trustScore: 94, verified: false },
+  { id: "i3", name: "Meridian Partners", initials: "MP", firm: "Meridian Partners", focus: "B2B SaaS", ticket: "$1M – $10M", stage: "Series A → B", portfolio: 38, match: 87, type: "Institutional VC", experience: "8+ Years", bio: "Accelerating the growth of enterprise software solutions with capital and operational expertise.", trustScore: 92, verified: true },
+  { id: "i4", name: "Cedar Angels", initials: "CA", firm: "Cedar Angels", focus: "Climate · Energy", ticket: "$50K – $500K", stage: "Pre-seed", portfolio: 24, match: 82, type: "Angel Syndicate", experience: "5+ Years", bio: "A network of mission-driven angels investing in climate resilience and renewable energy tech.", trustScore: 89, verified: false },
+  { id: "i5", name: "Orbit Syndicate", initials: "OS", firm: "Orbit Syndicate", focus: "Consumer · DTC", ticket: "$100K – $1M", stage: "Seed", portfolio: 31, match: 76, type: "Syndicate", experience: "7+ Years", bio: "Partnering with bold founders building the future of consumer engagement and direct-to-consumer brands.", trustScore: 85, verified: false },
 ];
 
 function DashboardPage() {
@@ -138,6 +142,26 @@ function DashboardPage() {
       n.has(id) ? n.delete(id) : n.add(id);
       return n;
     });
+
+  const handleRequestIntro = (target: any) => {
+    if (isInvestor) {
+      if (!isVerified) {
+        toast.error("Investor verification is mandatory", {
+          description: "Please complete your verification in Account Settings first.",
+        });
+        setTab("settings");
+        return;
+      }
+    } else {
+      if (!target.verified) {
+        toast.error("Investor verification is mandatory", {
+          description: "This investor has not completed verification and cannot accept introduction requests.",
+        });
+        return;
+      }
+    }
+    setRequestingTarget(target);
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -189,7 +213,7 @@ function DashboardPage() {
                 <span className="truncate text-xs text-muted-foreground capitalize">
                   {profile.role}{profile.company_name ? ` · ${profile.company_name}` : ""}
                 </span>
-                {isVerified && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
+                {isVerified && <CheckCircle2 className="h-3 w-3 text-blue-500 fill-blue-500/10 shrink-0" />}
               </div>
             </div>
           </div>
@@ -257,31 +281,31 @@ function DashboardPage() {
                 search={search}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
-                onRequestIntro={setRequestingTarget}
+                onRequestIntro={handleRequestIntro}
               />
             ) : (
               <StartupHome
                 search={search}
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
-                onRequestIntro={setRequestingTarget}
+                onRequestIntro={handleRequestIntro}
                 onViewProfile={setViewingInvestor}
                 onAddCompany={() => setShowAddCompany(true)}
                 isVerified={isVerified}
               />
             )
           ) : tab === "startups" ? (
-            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingStartup} />
+            <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingStartup} />
           ) : tab === "discover" ? (
-            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
+            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} isVerified={isVerified} />
           ) : tab === "saved" ? (
-            isInvestor ? <PipelineBoard search={search} /> : <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={setRequestingTarget} onViewProfile={setViewingInvestor} />
+            isInvestor ? <PipelineBoard search={search} /> : <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} isVerified={isVerified} />
           ) : tab === "requests" ? (
             <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "appointments" ? (
             <AppointmentsView userId={profile.id} />
           ) : tab === "connections" ? (
-            <Connections isInvestor={isInvestor} userId={profile.id} />
+            <Connections isInvestor={isInvestor} userId={profile.id} isVerified={isVerified} onRedirectToSettings={() => setTab("settings")} />
           ) : tab === "notifications" ? (
             <EmptyState icon={Bell} title="No new notifications" desc="You'll see intro requests, matches, and event invites here." />
           ) : (
@@ -363,6 +387,7 @@ function DashboardPage() {
         <IntroRequestModal 
           target={requestingTarget} 
           isInvestor={isInvestor}
+          isConsulting={!isInvestor && isVerified}
           onClose={() => setRequestingTarget(null)} 
           onSubmit={(data) => {
             const reqs = getIntroReqs();
@@ -417,7 +442,7 @@ function DashboardPage() {
             }
 
             setRequestingTarget(null);
-            toast.success(isInvestor ? "Appointment scheduled and synced!" : "Intro request sent!");
+            toast.success(isInvestor ? "Appointment scheduled and synced!" : (!isInvestor && isVerified) ? "Consulting session booked!" : "Intro request sent!");
           }} 
         />
       )}
@@ -429,7 +454,7 @@ function DashboardPage() {
           onRequestIntro={() => {
             const target = viewingInvestor;
             setViewingInvestor(null);
-            setRequestingTarget(target);
+            handleRequestIntro(target);
           }}
         />
       )}
@@ -441,7 +466,7 @@ function DashboardPage() {
           onCollaborate={() => {
             const target = viewingStartup;
             setViewingStartup(null);
-            setRequestingTarget(target);
+            handleRequestIntro(target);
           }}
         />
       )}
@@ -742,8 +767,8 @@ function InvestorHome({
 }
 
 function Discover({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile
-}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; }) {
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
+}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean; }) {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Discover</h1>
@@ -760,16 +785,16 @@ function Discover({
       </div>
 
       <div className="mt-6">
-        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} onViewProfile={onViewProfile} />
+        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} onViewProfile={onViewProfile} isVerified={isVerified} />
       </div>
     </div>
   );
 }
 
 function ForYou({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
 }: {
-  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void;
+  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean;
 }) {
   const list = isInvestor ? STARTUPS : INVESTORS;
   const filtered = useMemo(() => {
@@ -787,15 +812,15 @@ function ForYou({
       {filtered.map((it: any) =>
         isInvestor
           ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
-          : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
+          : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} isCurrentUserVerified={isVerified} />
       )}
     </div>
   );
 }
 
 function Saved({
-  isInvestor, savedIds, onToggleSave, onRequestIntro, onViewProfile
-}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; }) {
+  isInvestor, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
+}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean; }) {
   const list = (isInvestor ? STARTUPS : INVESTORS).filter((x) => savedIds.has(x.id));
 
   return (
@@ -812,7 +837,7 @@ function Saved({
           {list.map((it: any) =>
             isInvestor
               ? <StartupCard key={it.id} s={it} saved onSave={() => onToggleSave(it.id)} />
-              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
+              : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} isCurrentUserVerified={isVerified} />
           )}
         </div>
       )}
@@ -966,7 +991,7 @@ function AppointmentsView({ userId }: { userId: string }) {
   );
 }
 
-function Connections({ isInvestor, userId }: { isInvestor: boolean; userId: string }) {
+function Connections({ isInvestor, userId, isVerified, onRedirectToSettings }: { isInvestor: boolean; userId: string; isVerified?: boolean; onRedirectToSettings?: () => void }) {
   const [tab, setTab] = useState<"pending" | "active" | "archived">("pending");
   const [reqs, setReqs] = useState<LocalIntroRequest[]>([]);
   const [actionModal, setActionModal] = useState<{ req: LocalIntroRequest; action: 'accepted' | 'rejected' } | null>(null);
@@ -1043,7 +1068,21 @@ function Connections({ isInvestor, userId }: { isInvestor: boolean; userId: stri
 
               {isInvestor && r.status === 'pending' && (
                 <div className="flex gap-2">
-                  <button onClick={() => setActionModal({ req: r, action: 'accepted' })} className="rounded-lg bg-success px-4 py-2 text-xs font-semibold text-white transition-smooth hover:bg-success/80">Accept</button>
+                  <button 
+                    onClick={() => {
+                      if (!isVerified) {
+                        toast.error("Investor verification is mandatory", {
+                          description: "Please complete your verification in Account Settings to accept introduction requests.",
+                        });
+                        onRedirectToSettings?.();
+                        return;
+                      }
+                      setActionModal({ req: r, action: 'accepted' });
+                    }} 
+                    className={`rounded-lg px-4 py-2 text-xs font-semibold text-white transition-smooth ${isVerified ? 'bg-success hover:bg-success/80' : 'bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-80'}`}
+                  >
+                    Accept
+                  </button>
                   <button onClick={() => setActionModal({ req: r, action: 'rejected' })} className="rounded-lg bg-destructive px-4 py-2 text-xs font-semibold text-white transition-smooth hover:bg-destructive/80">Reject</button>
                 </div>
               )}
@@ -1702,7 +1741,12 @@ function StartupCard({ s, saved, onSave, onRequestIntro, alwaysShowIntelligence 
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{s.initials}</div>
           <div>
-            <div onClick={() => (s as any).onViewProfile?.()} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors">{s.name}</div>
+            <div onClick={() => (s as any).onViewProfile?.()} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5">
+              {s.name}
+              {s.verified && (
+                <span title="Verified Startup"><CheckCircle2 className="h-4 w-4 text-blue-500 fill-blue-500/10 shrink-0" /></span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">{s.sector} · {s.stage}</div>
           </div>
         </div>
@@ -1743,7 +1787,7 @@ function StartupCard({ s, saved, onSave, onRequestIntro, alwaysShowIntelligence 
   );
 }
 
-function InvestorCard({ i, saved, onSave, onRequestIntro, onViewProfile }: { i: any; saved: boolean; onSave: () => void; onRequestIntro?: () => void; onViewProfile?: () => void }) {
+function InvestorCard({ i, saved, onSave, onRequestIntro, onViewProfile, isCurrentUserVerified }: { i: any; saved: boolean; onSave: () => void; onRequestIntro?: () => void; onViewProfile?: () => void; isCurrentUserVerified?: boolean }) {
   const [showIntelligence, setShowIntelligence] = useState(false);
 
   return (
@@ -1756,7 +1800,12 @@ function InvestorCard({ i, saved, onSave, onRequestIntro, onViewProfile }: { i: 
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{i.initials}</div>
           <div>
-            <div onClick={onViewProfile} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors">{i.firm}</div>
+            <div onClick={onViewProfile} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5">
+              {i.firm}
+              {i.verified && (
+                <span title="Verified Investor"><CheckCircle2 className="h-4 w-4 text-blue-500 fill-blue-500/10 shrink-0" /></span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">{i.focus}</div>
           </div>
         </div>
@@ -1776,7 +1825,7 @@ function InvestorCard({ i, saved, onSave, onRequestIntro, onViewProfile }: { i: 
 
       <div className="mt-5 flex gap-2">
         <button onClick={onRequestIntro} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-elegant transition-smooth hover:shadow-glow">
-          Request intro <ArrowUpRight className="h-3 w-3" />
+          {isCurrentUserVerified ? "Get consulting" : "Request intro"} <ArrowUpRight className="h-3 w-3" />
         </button>
         <button onClick={onSave} className={`flex h-9 w-9 items-center justify-center rounded-lg border transition-smooth ${saved ? "border-primary/40 bg-accent text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"}`}>
           <Heart className="h-4 w-4" fill={saved ? "currentColor" : "none"} />
@@ -1833,12 +1882,14 @@ function IntroRequestModal({
   target, 
   isInvestor, 
   onClose, 
-  onSubmit 
+  onSubmit,
+  isConsulting
 }: { 
   target: any; 
   isInvestor: boolean; 
   onClose: () => void; 
-  onSubmit: (data: any) => void 
+  onSubmit: (data: any) => void;
+  isConsulting?: boolean;
 }) {
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -1886,7 +1937,12 @@ function IntroRequestModal({
           <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-navy font-display text-2xl font-bold text-navy-foreground mb-4 shadow-elegant">
             {target.initials}
           </div>
-          <h2 className="font-display text-xl font-bold tracking-tight text-center leading-tight">{target.name || target.firm}</h2>
+          <h2 className="font-display text-xl font-bold tracking-tight text-center leading-tight flex items-center justify-center gap-1.5">
+            {target.name || target.firm}
+            {target.verified && (
+              <span title="Verified"><CheckCircle2 className="h-5 w-5 text-blue-500 fill-blue-500/10 shrink-0" /></span>
+            )}
+          </h2>
           <p className="text-[9px] text-muted-foreground font-bold mt-1.5 uppercase tracking-widest">{target.sector || target.focus}</p>
           
           <div className="mt-6 w-full space-y-3">
@@ -2029,7 +2085,13 @@ function IntroRequestModal({
               }} 
               className="flex items-center gap-2 rounded-xl bg-gradient-primary px-8 py-3 text-xs font-bold text-primary-foreground transition-all hover:shadow-glow shadow-elegant"
             >
-              {isInvestor ? <>Schedule Session <Video className="h-4 w-4" /></> : <>Send Intro Request <ArrowUpRight className="h-4 w-4" /></>}
+              {isInvestor ? (
+                <>Schedule Session <Video className="h-4 w-4" /></>
+              ) : isConsulting ? (
+                <>Book my consulting <ArrowUpRight className="h-4 w-4" /></>
+              ) : (
+                <>Send Intro Request <ArrowUpRight className="h-4 w-4" /></>
+              )}
             </button>
           </div>
         </div>
@@ -2157,6 +2219,12 @@ type LocalIntroRequest = {
   status: 'pending' | 'accepted' | 'rejected';
   actionReason?: string;
   date: string;
+  appointmentTime?: string;
+  receiverId?: string;
+  senderName?: string;
+  senderId?: string;
+  founderName?: string;
+  details?: string;
 };
 
 const getIntroReqs = (): LocalIntroRequest[] => {
@@ -2423,83 +2491,99 @@ function InvestorProfileModal({ investor, onClose, onRequestIntro }: { investor:
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl h-full bg-background shadow-2xl flex flex-col border-l border-border"
       >
-        <div className="relative h-48 bg-gradient-navy shrink-0">
-          <button onClick={onClose} className="absolute right-6 top-6 z-20 rounded-full bg-black/20 p-2 text-white transition-smooth hover:bg-black/40">
-            <XCircle className="h-6 w-6" />
+        <div className="relative h-32 bg-gradient-navy shrink-0">
+          <button onClick={onClose} className="absolute right-4 top-4 z-20 rounded-full bg-black/20 p-1.5 text-white transition-smooth hover:bg-black/40">
+            <XCircle className="h-5 w-5" />
           </button>
-          <div className="absolute -bottom-10 left-10 flex h-32 w-32 items-center justify-center rounded-3xl bg-card border-4 border-background shadow-elegant z-10">
-            <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-navy font-display text-3xl font-bold text-white">
+          <div className="absolute -bottom-6 left-8 flex h-20 w-20 items-center justify-center rounded-2xl bg-card border-4 border-background shadow-elegant z-10">
+            <div className="flex h-full w-full items-center justify-center rounded-xl bg-gradient-navy font-display text-xl font-bold text-white">
               {investor.initials}
             </div>
           </div>
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
         </div>
 
-        <div className="flex-1 overflow-y-auto mt-16 px-10 pb-10">
+        <div className="flex-1 overflow-y-auto mt-8 px-8 pb-6 pt-2">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight">{investor.firm}</h2>
-              <div className="mt-1 flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-                <ShieldCheck className="h-4 w-4" /> Institutional Partner
+              <h2 className="font-display text-2xl font-bold tracking-tight flex items-center gap-2">
+                {investor.firm}
+                {investor.verified && (
+                  <span title="Verified Investor"><CheckCircle2 className="h-5 w-5 text-blue-500 fill-blue-500/10 shrink-0" /></span>
+                )}
+              </h2>
+              <div className={`mt-1 flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-widest ${investor.verified ? 'text-primary' : 'text-muted-foreground'}`}>
+                {investor.verified ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+                {investor.verified ? 'Institutional Partner' : 'Applicant Node'}
               </div>
             </div>
             <div className="flex flex-col items-end">
               <TrustScore score={investor.trustScore} label="Trust Index" />
-              <div className="mt-2 text-[10px] font-bold text-success uppercase tracking-[0.2em] bg-success/10 px-2.5 py-1 rounded-full border border-success/20">Audit Verified</div>
+              {investor.verified ? (
+                <div className="mt-1.5 text-[9px] font-bold text-success uppercase tracking-[0.2em] bg-success/10 px-2.5 py-0.5 rounded-full border border-success/20">Audit Verified</div>
+              ) : (
+                <div className="mt-1.5 text-[9px] font-bold text-amber-500 uppercase tracking-[0.2em] bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">Pending Audit</div>
+              )}
             </div>
           </div>
 
-          <div className="mt-10 grid gap-8 md:grid-cols-2">
-            <div className="space-y-6">
-              <div className="rounded-2xl bg-muted/30 p-6 border border-border/50 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Partner Credentials</div>
-                <div className="space-y-4">
-                  <div className="flex justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs text-muted-foreground">Entity Type</span>
-                    <span className="text-xs font-bold">{investor.type}</span>
+          <div className="mt-6 grid gap-5 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-muted/30 p-4 border border-border/50 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Partner Credentials</div>
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b border-border/40 pb-1.5">
+                    <span className="text-[11px] text-muted-foreground">Entity Type</span>
+                    <span className="text-[11px] font-bold">{investor.type}</span>
                   </div>
-                  <div className="flex justify-between border-b border-border/40 pb-2">
-                    <span className="text-xs text-muted-foreground">Experience</span>
-                    <span className="text-xs font-bold">{investor.experience}</span>
+                  <div className="flex justify-between border-b border-border/40 pb-1.5">
+                    <span className="text-[11px] text-muted-foreground">Experience</span>
+                    <span className="text-[11px] font-bold">{investor.experience}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-xs text-muted-foreground">Typical Ticket</span>
-                    <span className="text-xs font-bold text-primary">{investor.ticket}</span>
+                    <span className="text-[11px] text-muted-foreground">Typical Ticket</span>
+                    <span className="text-[11px] font-bold text-primary">{investor.ticket}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-primary/5 p-6 border border-primary/10 shadow-sm">
-                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-4">Strategic Focus</div>
-                <div className="flex flex-wrap gap-2">
+              <div className="rounded-2xl bg-primary/5 p-4 border border-primary/10 shadow-sm">
+                <div className="text-[9px] font-bold text-primary uppercase tracking-widest mb-3">Strategic Focus</div>
+                <div className="flex flex-wrap gap-1.5">
                   {investor.focus.split(' · ').map((f: string) => (
-                    <span key={f} className="rounded-full bg-white px-3 py-1 text-[10px] font-bold text-primary border border-primary/10 shadow-sm">{f}</span>
+                    <span key={f} className="rounded-full bg-white px-2.5 py-0.5 text-[9px] font-bold text-primary border border-primary/10 shadow-sm">{f}</span>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Thesis Overview</div>
-                <p className="text-xs text-muted-foreground leading-relaxed italic">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Thesis Overview</div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed italic">
                   "{investor.bio}"
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Verification Status</div>
-                <div className="space-y-3">
+              <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Verification Status</div>
+                <div className="space-y-2.5">
                   {[
-                    { label: "Identity & PAN Audit", status: "Verified" },
-                    { label: "Professional Background", status: "Verified" },
-                    { label: "Institutional Status", status: "Audited" }
+                    { label: "Identity & PAN Audit" },
+                    { label: "Professional Background" },
+                    { label: "Institutional Status" }
                   ].map((s, idx) => (
                     <div key={idx} className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-muted-foreground">{s.label}</span>
-                      <div className="flex items-center gap-1.5 text-success font-bold text-[9px] uppercase tracking-wider">
-                        Verified <CheckCircle2 className="h-3 w-3" />
-                      </div>
+                      {investor.verified ? (
+                        <div className="flex items-center gap-1 text-success font-bold text-[9px] uppercase tracking-wider">
+                          Verified <CheckCircle2 className="h-3 w-3" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-amber-500 font-bold text-[9px] uppercase tracking-wider">
+                          Pending <Clock className="h-3 w-3" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2508,16 +2592,16 @@ function InvestorProfileModal({ investor, onClose, onRequestIntro }: { investor:
           </div>
         </div>
 
-        <div className="p-8 border-t border-border bg-card/30 flex gap-4">
+        <div className="p-5 border-t border-border bg-card/30 flex gap-3 shrink-0">
           <button 
             onClick={onRequestIntro}
-            className="flex-1 rounded-2xl bg-gradient-primary py-4 text-sm font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-all active:scale-95"
+            className="flex-1 rounded-2xl bg-gradient-primary py-3 text-xs font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-all active:scale-95"
           >
             Request Institutional Introduction
           </button>
           <button 
             onClick={onClose}
-            className="rounded-2xl border border-border px-8 py-4 text-sm font-bold text-muted-foreground transition-smooth hover:bg-muted"
+            className="rounded-2xl border border-border px-6 py-3 text-xs font-bold text-muted-foreground transition-smooth hover:bg-muted"
           >
             Close
           </button>
@@ -2539,113 +2623,125 @@ function StartupProfileModal({ startup, onClose, onCollaborate }: { startup: any
         className="w-full max-w-4xl h-full bg-background shadow-2xl flex flex-col md:flex-row border-l border-border"
       >
         {/* Left - Brand Side */}
-        <div className="md:w-80 bg-gradient-navy p-12 flex flex-col items-center justify-center text-center shrink-0">
-          <div className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] bg-white/10 text-white font-display text-4xl font-bold shadow-elegant mb-8 ring-1 ring-white/20">
+        <div className="md:w-64 bg-gradient-navy p-6 md:p-8 flex flex-col items-center justify-center text-center shrink-0">
+          <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 text-white font-display text-3xl font-bold shadow-elegant mb-4 ring-1 ring-white/20">
             {startup.initials}
           </div>
-          <h3 className="text-white font-display text-3xl font-bold mb-3 tracking-tight">{startup.name}</h3>
-          <p className="text-white/60 text-xs mb-10 leading-relaxed font-medium uppercase tracking-widest">Growth Phase Intelligence</p>
+          <h3 className="text-white font-display text-2xl font-bold mb-2 tracking-tight flex items-center justify-center gap-1.5">
+            {startup.name}
+            {startup.verified && (
+              <span title="Verified Startup"><CheckCircle2 className="h-5 w-5 text-blue-500 fill-blue-500/10 shrink-0" /></span>
+            )}
+          </h3>
+          <p className="text-white/60 text-[10px] mb-6 leading-relaxed font-medium uppercase tracking-widest">Growth Phase Intelligence</p>
           
           <button 
             onClick={onCollaborate}
-            className="w-full rounded-2xl bg-white px-8 py-4 text-sm font-bold text-navy transition-all hover:scale-105 active:scale-95 shadow-glow shadow-white/20"
+            className="w-full rounded-2xl bg-white px-6 py-3 text-xs font-bold text-navy transition-all hover:scale-105 active:scale-95 shadow-glow shadow-white/20"
           >
             Collaborate Now
           </button>
           <button 
             onClick={onClose}
-            className="mt-6 text-xs font-bold text-white/40 hover:text-white/80 transition-smooth uppercase tracking-widest"
+            className="mt-4 text-[10px] font-bold text-white/40 hover:text-white/80 transition-smooth uppercase tracking-widest"
           >
             Close Profile
           </button>
         </div>
 
         {/* Right - Deep Intelligence */}
-        <div className="flex-1 p-12 overflow-y-auto">
-          <div className="flex justify-between items-start mb-12">
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="font-display text-4xl font-bold tracking-tight mb-3">Venture Intelligence</h2>
-              <div className="flex items-center gap-2 text-success font-bold text-xs uppercase tracking-[0.2em]">
-                <ShieldCheck className="h-4 w-4" /> Strategic Partner Node
+              <h2 className="font-display text-2xl font-bold tracking-tight mb-1.5">Venture Intelligence</h2>
+              <div className={`flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-[0.2em] ${startup.verified ? 'text-success' : 'text-amber-500'}`}>
+                {startup.verified ? <ShieldCheck className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+                {startup.verified ? 'Strategic Partner Node' : 'Verification Pending'}
               </div>
             </div>
             <div className="flex flex-col items-end">
               <TrustScore score={startup.match} label="Growth Index" />
-              <div className="mt-2 text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/5 px-2.5 py-1 rounded-full border border-primary/20">High Potential</div>
+              {startup.verified ? (
+                <div className="mt-1.5 text-[9px] font-bold text-primary uppercase tracking-widest bg-primary/5 px-2.5 py-0.5 rounded-full border border-primary/20">High Potential</div>
+              ) : (
+                <div className="mt-1.5 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/5 px-2.5 py-0.5 rounded-full border border-amber-500/20">Pending Assessment</div>
+              )}
             </div>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="space-y-8">
-              <div className="rounded-2xl bg-muted/30 p-8 border border-border/50 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Institutional Hub</div>
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    <MapPin className="h-5 w-5" />
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-muted/30 p-5 border border-border/50 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 border-b border-border/40 pb-1.5">Institutional Hub</div>
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <MapPin className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Headquarters</div>
-                    <div className="text-sm font-bold leading-relaxed">
+                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Headquarters</div>
+                    <div className="text-xs font-bold leading-relaxed">
                       {startup.address || startup.location}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-primary/5 p-8 border border-primary/10 shadow-sm">
-                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-6 border-b border-primary/20 pb-2">Operational Sector</div>
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    <Briefcase className="h-5 w-5" />
+              <div className="rounded-2xl bg-primary/5 p-5 border border-primary/10 shadow-sm">
+                <div className="text-[9px] font-bold text-primary uppercase tracking-widest mb-3 border-b border-primary/20 pb-1.5">Operational Sector</div>
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    <Briefcase className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">Market Vertical</div>
-                    <div className="text-sm font-bold">{startup.domain || startup.sector}</div>
+                    <div className="text-[9px] font-bold text-primary uppercase tracking-widest mb-0.5">Market Vertical</div>
+                    <div className="text-xs font-bold">{startup.domain || startup.sector}</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-8">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Market Traction</div>
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center text-success shrink-0">
-                    <TrendingUp className="h-5 w-5" />
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 border-b border-border/40 pb-1.5">Market Traction</div>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center text-success shrink-0">
+                    <TrendingUp className="h-4 w-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Experience</div>
-                    <div className="text-lg font-bold text-foreground">{startup.experience || '2+ Years'}</div>
+                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Experience</div>
+                    <div className="text-sm font-bold text-foreground">{startup.experience || '2+ Years'}</div>
                   </div>
                 </div>
-                <div className="mt-4 text-[10px] text-muted-foreground font-medium italic">Verified institutional track record with consistent growth.</div>
+                <div className="mt-3 text-[10px] text-muted-foreground font-medium italic">
+                  {startup.verified ? 'Verified institutional track record with consistent growth.' : 'Pending institutional audit verification.'}
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 border-b border-border/40 pb-2">Raise Intelligence</div>
-                <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 border-b border-border/40 pb-1.5">Raise Intelligence</div>
+                <div className="space-y-3">
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-medium uppercase tracking-widest">Active Ask</span>
-                    <span className="font-bold text-primary text-lg">{startup.ask}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Active Ask</span>
+                    <span className="font-bold text-primary text-base">{startup.ask}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground font-medium uppercase tracking-widest">Current Stage</span>
-                    <span className="font-bold bg-muted px-3 py-1 rounded-lg border border-border/50">{startup.stage}</span>
+                    <span className="text-muted-foreground font-medium uppercase tracking-widest text-[10px]">Current Stage</span>
+                    <span className="font-bold bg-muted px-2.5 py-0.5 rounded-lg border border-border/50 text-[10px]">{startup.stage}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 rounded-[2rem] bg-navy p-10 text-navy-foreground flex items-center justify-between shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 h-32 w-32 translate-x-10 -translate-y-10 rounded-full bg-white/5 blur-3xl" />
+          <div className="mt-6 rounded-2xl bg-navy p-6 text-navy-foreground flex items-center justify-between shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/5 blur-2xl" />
             <div className="max-w-md relative z-10">
-              <div className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-3">Strategic Status</div>
-              <div className="text-lg font-medium leading-relaxed">This venture is currently open for strategic collaborations and institutional partnerships.</div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-50 mb-2">Strategic Status</div>
+              <div className="text-xs font-medium leading-relaxed">This venture is currently open for strategic collaborations and institutional partnerships.</div>
             </div>
             <button 
               onClick={onCollaborate}
-              className="relative z-10 rounded-2xl bg-white/10 px-8 py-4 text-sm font-bold backdrop-blur-xl border border-white/20 transition-all hover:bg-white/20 hover:scale-105 active:scale-95"
+              className="relative z-10 rounded-xl bg-white/10 px-5 py-2.5 text-xs font-bold backdrop-blur-xl border border-white/20 transition-all hover:bg-white/20 hover:scale-105 active:scale-95"
             >
               Express Interest
             </button>
@@ -2773,7 +2869,7 @@ function PipelineBoard({ search }: { search: string }) {
     setActiveId(null);
   }, [data, findColumn]);
 
-  const activeItem = activeId ? Object.values(data).flat().find((i: any) => i.id === activeId) : null;
+  const activeItem = activeId ? (Object.values(data).flat() as any[]).find((i: any) => i.id === activeId) : null;
 
   return (
     <div className="h-[calc(100vh-160px)] flex flex-col animate-fade-in overflow-hidden">

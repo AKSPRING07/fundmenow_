@@ -243,16 +243,7 @@ function AuthPage() {
                 }
               />
 
-              {!isSignup && (
-                <div className="flex justify-end pt-1">
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
+
 
               <button
                 type="submit"
