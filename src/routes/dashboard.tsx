@@ -282,6 +282,7 @@ function DashboardPage() {
                 savedIds={savedIds}
                 onToggleSave={toggleSave}
                 onRequestIntro={handleRequestIntro}
+                onViewProfile={setViewingStartup}
               />
             ) : (
               <StartupHome
@@ -297,9 +298,9 @@ function DashboardPage() {
           ) : tab === "startups" ? (
             <StartupsMarketplace search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingStartup} />
           ) : tab === "discover" ? (
-            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} isVerified={isVerified} />
+            <Discover isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} onViewStartup={setViewingStartup} isVerified={isVerified} />
           ) : tab === "saved" ? (
-            isInvestor ? <PipelineBoard search={search} /> : <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} isVerified={isVerified} />
+            isInvestor ? <PipelineBoard search={search} /> : <Saved isInvestor={isInvestor} savedIds={savedIds} onToggleSave={toggleSave} onRequestIntro={handleRequestIntro} onViewProfile={setViewingInvestor} onViewStartup={setViewingStartup} isVerified={isVerified} />
           ) : tab === "requests" ? (
             <RequestsView isInvestor={isInvestor} userId={user.id} />
           ) : tab === "appointments" ? (
@@ -633,9 +634,9 @@ function StartupHome({
 }
 
 function InvestorHome({
-  search, savedIds, onToggleSave, onRequestIntro
+  search, savedIds, onToggleSave, onRequestIntro, onViewProfile
 }: {
-  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: any) => void;
+  search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (s: any) => void; onViewProfile?: (s: any) => void;
 }) {
   const [thesis, setThesis] = useState("");
 
@@ -759,7 +760,7 @@ function InvestorHome({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((it: any) =>
-          <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} />
         )}
       </div>
     </div>
@@ -767,8 +768,8 @@ function InvestorHome({
 }
 
 function Discover({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
-}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean; }) {
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, onViewStartup, isVerified
+}: { isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; onViewStartup?: (s: any) => void; isVerified: boolean; }) {
   return (
     <div>
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Discover</h1>
@@ -785,16 +786,16 @@ function Discover({
       </div>
 
       <div className="mt-6">
-        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} onViewProfile={onViewProfile} isVerified={isVerified} />
+        <ForYou isInvestor={isInvestor} search={search} savedIds={savedIds} onToggleSave={onToggleSave} onRequestIntro={onRequestIntro} onViewProfile={onViewProfile} onViewStartup={onViewStartup} isVerified={isVerified} />
       </div>
     </div>
   );
 }
 
 function ForYou({
-  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
+  isInvestor, search, savedIds, onToggleSave, onRequestIntro, onViewProfile, onViewStartup, isVerified
 }: {
-  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean;
+  isInvestor: boolean; search: string; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; onViewStartup?: (s: any) => void; isVerified: boolean;
 }) {
   const list = isInvestor ? STARTUPS : INVESTORS;
   const filtered = useMemo(() => {
@@ -811,7 +812,7 @@ function ForYou({
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {filtered.map((it: any) =>
         isInvestor
-          ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} />
+          ? <StartupCard key={it.id} s={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewStartup?.(it)} />
           : <InvestorCard key={it.id} i={it} saved={savedIds.has(it.id)} onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} isCurrentUserVerified={isVerified} />
       )}
     </div>
@@ -819,8 +820,8 @@ function ForYou({
 }
 
 function Saved({
-  isInvestor, savedIds, onToggleSave, onRequestIntro, onViewProfile, isVerified
-}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; isVerified: boolean; }) {
+  isInvestor, savedIds, onToggleSave, onRequestIntro, onViewProfile, onViewStartup, isVerified
+}: { isInvestor: boolean; savedIds: Set<string>; onToggleSave: (id: string) => void; onRequestIntro: (i: any) => void; onViewProfile?: (i: any) => void; onViewStartup?: (s: any) => void; isVerified: boolean; }) {
   const list = (isInvestor ? STARTUPS : INVESTORS).filter((x) => savedIds.has(x.id));
 
   return (
@@ -836,7 +837,7 @@ function Saved({
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {list.map((it: any) =>
             isInvestor
-              ? <StartupCard key={it.id} s={it} saved onSave={() => onToggleSave(it.id)} />
+              ? <StartupCard key={it.id} s={it} saved onSave={() => onToggleSave(it.id)} onViewProfile={() => onViewStartup?.(it)} />
               : <InvestorCard key={it.id} i={it} saved onSave={() => onToggleSave(it.id)} onRequestIntro={() => onRequestIntro(it)} onViewProfile={() => onViewProfile?.(it)} isCurrentUserVerified={isVerified} />
           )}
         </div>
@@ -1727,7 +1728,7 @@ function TrustScore({ score, label }: { score: number; label: string }) {
   );
 }
 
-function StartupCard({ s, saved, onSave, onRequestIntro, alwaysShowIntelligence }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void; alwaysShowIntelligence?: boolean }) {
+function StartupCard({ s, saved, onSave, onRequestIntro, onViewProfile, alwaysShowIntelligence }: { s: Startup; saved: boolean; onSave: () => void; onRequestIntro?: () => void; onViewProfile?: () => void; alwaysShowIntelligence?: boolean }) {
   const [showIntelligence, setShowIntelligence] = useState(false);
   const displayIntelligence = showIntelligence || alwaysShowIntelligence;
 
@@ -1741,7 +1742,7 @@ function StartupCard({ s, saved, onSave, onRequestIntro, alwaysShowIntelligence 
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-navy-foreground">{s.initials}</div>
           <div>
-            <div onClick={() => (s as any).onViewProfile?.()} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5">
+            <div onClick={onViewProfile} className="font-display text-base font-semibold cursor-pointer hover:text-primary transition-colors flex items-center gap-1.5">
               {s.name}
               {s.verified && (
                 <span title="Verified Startup"><CheckCircle2 className="h-4 w-4 text-blue-500 fill-blue-500/10 shrink-0" /></span>
@@ -2787,7 +2788,7 @@ function PipelineBoard({ search }: { search: string }) {
   
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<any>(null);
-  const [showCreate, setShowCreate] = useState(false);
+
 
   useEffect(() => {
     localStorage.setItem('investorPipeline', JSON.stringify(data));
@@ -2878,14 +2879,9 @@ function PipelineBoard({ search }: { search: string }) {
           <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Deal Pipeline</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage your active investment lifecycle and due diligence.</p>
         </div>
-        <div className="flex gap-2">
-          <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-smooth hover:border-primary/40 hover:text-foreground">
-            <Filter className="h-3.5 w-3.5" /> Filters
-          </button>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 rounded-lg bg-gradient-primary px-4 py-1.5 text-xs font-bold text-primary-foreground shadow-elegant hover:shadow-glow transition-smooth">
-            <Plus className="h-4 w-4" /> Create Deal
-          </button>
-        </div>
+        <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-smooth hover:border-primary/40 hover:text-foreground">
+          <Filter className="h-3.5 w-3.5" /> Filters
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -2904,7 +2900,6 @@ function PipelineBoard({ search }: { search: string }) {
                 stage={stage}
                 items={data[stage.id] || []}
                 idx={idx}
-                onCreateDeal={() => setShowCreate(true)}
               />
             ))}
           </div>
@@ -2930,25 +2925,13 @@ function PipelineBoard({ search }: { search: string }) {
             }} 
           />
         )}
-        {showCreate && (
-          <CreateDealModal 
-            onClose={() => setShowCreate(false)} 
-            onSubmit={(card: any) => {
-              setData((prev: any) => ({
-                ...prev,
-                started: [{ ...card, id: Math.random().toString(36).slice(2), date: new Date().toISOString(), avatar: card.founder.slice(0, 2).toUpperCase() }, ...prev.started]
-              }));
-              setShowCreate(false);
-              toast.success("New deal created successfully!");
-            }}
-          />
-        )}
+
       </AnimatePresence>
     </div>
   );
 }
 
-function DroppableColumn({ id, stage, items, idx, onCreateDeal }: { id: string; stage: any; items: any[]; idx: number; onCreateDeal: () => void }) {
+function DroppableColumn({ id, stage, items, idx }: { id: string; stage: any; items: any[]; idx: number }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -2980,9 +2963,7 @@ function DroppableColumn({ id, stage, items, idx, onCreateDeal }: { id: string; 
           )}
         </div>
         
-        <button onClick={onCreateDeal} className="mt-2 w-full flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-200 text-[11px] font-medium text-[#42526E] transition-colors">
-          <Plus className="h-3.5 w-3.5" /> Create
-        </button>
+
       </div>
     </SortableContext>
   );
