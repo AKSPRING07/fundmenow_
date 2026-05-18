@@ -993,10 +993,11 @@ function AppointmentsView({ userId }: { userId: string }) {
 }
 
 function Connections({ isInvestor, userId, isVerified, onRedirectToSettings }: { isInvestor: boolean; userId: string; isVerified?: boolean; onRedirectToSettings?: () => void }) {
-  const [tab, setTab] = useState<"pending" | "active" | "archived">("pending");
+  const [tab, setTab] = useState<"pending" | "intro_requested" | "active" | "archived">("pending");
   const [reqs, setReqs] = useState<LocalIntroRequest[]>([]);
   const [actionModal, setActionModal] = useState<{ req: LocalIntroRequest; action: 'accepted' | 'rejected' } | null>(null);
   const [actionReason, setActionReason] = useState("");
+  const [viewingStartup, setViewingStartup] = useState<any>(null);
 
   useEffect(() => {
     const load = () => {
@@ -1012,6 +1013,7 @@ function Connections({ isInvestor, userId, isVerified, onRedirectToSettings }: {
 
   const filtered = reqs.filter(r => {
     if (tab === 'pending') return r.status === 'pending';
+    if (tab === 'intro_requested') return r.status === 'intro_requested';
     if (tab === 'active') return r.status === 'accepted';
     if (tab === 'archived') return r.status === 'rejected';
     return false;
@@ -1030,8 +1032,8 @@ function Connections({ isInvestor, userId, isVerified, onRedirectToSettings }: {
       <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">Connections</h1>
       <p className="mt-1 text-sm text-muted-foreground">Manage your intros, conversations, and shared contacts.</p>
 
-      <div className="mt-6 inline-flex rounded-xl border border-border bg-card p-1">
-        {(["pending", "active", "archived"] as const).map((t) => (
+      <div className="mt-6 inline-flex flex-wrap rounded-xl border border-border bg-card p-1 gap-1">
+        {(["pending", "intro_requested", "active", "archived"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -1039,58 +1041,161 @@ function Connections({ isInvestor, userId, isVerified, onRedirectToSettings }: {
               tab === t ? "bg-gradient-primary text-primary-foreground shadow-elegant" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t}
+            {t === 'intro_requested' ? 'Intro Requested' : t === 'active' ? 'Accepted' : t}
+            <span className="ml-1 opacity-70">({reqs.filter(r => t === 'pending' ? r.status === 'pending' : t === 'intro_requested' ? r.status === 'intro_requested' : t === 'active' ? r.status === 'accepted' : r.status === 'rejected').length})</span>
           </button>
         ))}
       </div>
 
       <div className="mt-8 space-y-4">
         {filtered.length === 0 ? (
-          <EmptyState icon={Users} title={`No ${tab} connections`} desc="Once you request or accept an intro, it'll show up here." />
+          <EmptyState icon={Users} title={`No ${tab === 'intro_requested' ? 'intro requested' : tab} connections`} desc="Once you request or accept an intro, it'll show up here." />
         ) : (
-          filtered.map(r => (
-            <div key={r.id} className={`rounded-2xl border bg-card p-5 shadow-card flex flex-col md:flex-row gap-4 justify-between items-start ${r.status === 'accepted' ? 'border-success/50' : r.status === 'rejected' ? 'border-destructive/50' : 'border-border'}`}>
-              <div>
-                <div className="font-display text-lg font-bold flex items-center gap-2">
-                  <span className="text-primary font-display">From: {r.senderName || r.investorName || 'New Request'}</span>
-                  {r.status === 'accepted' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-success text-[10px] text-white">✓</span>}
-                  {r.status === 'rejected' && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">✕</span>}
+          filtered.map(r => {
+            // Try to match request sender to a known startup for profile viewing
+            const matchedStartup = STARTUPS.find(
+              s => s.name === r.companyName || s.name === r.senderName ||
+                   s.name === (r as any).company_name
+            );
+
+            return (
+              <div key={r.id} className={`rounded-2xl border bg-card p-5 shadow-card flex flex-col gap-4 ${
+                r.status === 'accepted' ? 'border-success/50' :
+                r.status === 'rejected' ? 'border-destructive/50' :
+                r.status === 'intro_requested' ? 'border-blue-400/50 bg-blue-500/5' :
+                'border-border'
+              }`}>
+                {/* Header row */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-navy font-display text-sm font-bold text-white shrink-0">
+                      {(r.companyName || r.senderName || '?').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => {
+                          const target = matchedStartup || {
+                            id: r.id,
+                            name: r.companyName || r.senderName,
+                            initials: (r.companyName || r.senderName || '?').slice(0, 2).toUpperCase(),
+                            sector: (r as any).investorFocus || 'Startup',
+                            stage: 'Unknown',
+                            location: (r as any).address || '',
+                            ask: (r as any).expected || '',
+                            match: 80,
+                            address: (r as any).address || '',
+                            domain: (r as any).investorFocus || '',
+                            verified: false,
+                          };
+                          setViewingStartup(target);
+                        }}
+                        className="font-display text-base font-bold text-primary hover:text-primary/80 transition-colors text-left underline underline-offset-2"
+                      >
+                        {r.companyName || r.senderName || 'Startup'}
+                      </button>
+                      <div className="text-xs text-muted-foreground mt-0.5">— Institutional Outreach</div>
+                    </div>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest border ${
+                    r.status === 'intro_requested' ? 'bg-blue-500/10 text-blue-600 border-blue-400/30' :
+                    r.status === 'accepted' ? 'bg-success/10 text-success border-success/30' :
+                    r.status === 'rejected' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                    'bg-amber-500/10 text-amber-600 border-amber-400/30'
+                  }`}>
+                    {r.status === 'intro_requested' ? '⚡ Intro Requested' : r.status}
+                  </span>
                 </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Target: {r.investorName} • {isInvestor ? `Asking: ${r.expected}` : `Focus: ${r.investorFocus}`}
+
+                {/* Detail grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Expected Raise</div>
+                    <div className="text-sm font-bold">{(r as any).expected || (r as any).expected_amount || 'Not specified'}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Investor Profile</div>
+                    <div className="text-sm font-bold">{r.investorName} · {r.investorFocus}</div>
+                  </div>
                 </div>
-                <div className="mt-3 text-sm">{r.reason}</div>
-                {r.actionReason && (
-                  <div className={`mt-3 text-xs font-semibold p-2 rounded-lg ${r.status === 'accepted' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                    {r.status === 'accepted' ? 'Accepted' : 'Rejected'}: {r.actionReason}
+
+                {r.reason && (
+                  <div>
+                    <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Reason</div>
+                    <div className="text-sm text-muted-foreground">{r.reason}</div>
                   </div>
                 )}
-              </div>
 
-              {isInvestor && r.status === 'pending' && (
-                <div className="flex gap-2">
-                  <button 
+                {r.actionReason && (
+                  <div className={`text-xs font-semibold p-2 rounded-lg ${
+                    r.status === 'accepted' ? 'bg-success/10 text-success' :
+                    r.status === 'intro_requested' ? 'bg-blue-500/10 text-blue-600' :
+                    'bg-destructive/10 text-destructive'
+                  }`}>
+                    {r.status === 'accepted' ? 'Accepted' : r.status === 'intro_requested' ? 'Intro Requested' : 'Rejected'}: {r.actionReason}
+                  </div>
+                )}
+
+                {/* Actions — investor only on pending */}
+                {isInvestor && r.status === 'pending' && (
+                  <button
                     onClick={() => {
-                      if (!isVerified) {
-                        toast.error("Investor verification is mandatory", {
-                          description: "Please complete your verification in Account Settings to accept introduction requests.",
+                      // Update status to intro_requested
+                      const all = getIntroReqs();
+                      const updated = all.map((req: any) =>
+                        req.id === r.id
+                          ? { ...req, status: 'intro_requested', actionReason: 'Investor has expressed interest and requested an introduction.' }
+                          : req
+                      );
+                      saveIntroReqs(updated);
+
+                      // Add to pipeline Discussion column
+                      const pipeline = JSON.parse(localStorage.getItem('investorPipeline') || '{}');
+                      const discussion = pipeline.discussion || [];
+                      const alreadyAdded = discussion.some((d: any) => d.name === (r.companyName || r.senderName));
+                      if (!alreadyAdded) {
+                        discussion.unshift({
+                          id: 'intro-' + r.id,
+                          name: r.companyName || r.senderName || 'Startup',
+                          founder: r.founderName || r.senderName || 'Founder',
+                          industry: r.investorFocus || 'Startup',
+                          amount: (r as any).expected || 'TBD',
+                          priority: 'High',
+                          date: new Date().toISOString(),
+                          avatar: (r.companyName || r.senderName || '??').slice(0, 2).toUpperCase(),
                         });
-                        onRedirectToSettings?.();
-                        return;
+                        pipeline.discussion = discussion;
+                        localStorage.setItem('investorPipeline', JSON.stringify(pipeline));
                       }
-                      setActionModal({ req: r, action: 'accepted' });
-                    }} 
-                    className={`rounded-lg px-4 py-2 text-xs font-semibold text-white transition-smooth ${isVerified ? 'bg-success hover:bg-success/80' : 'bg-muted text-muted-foreground border border-border cursor-not-allowed opacity-80'}`}
+
+                      // Reload
+                      setReqs(prev => prev.map(req =>
+                        req.id === r.id ? { ...req, status: 'intro_requested', actionReason: 'Investor has expressed interest and requested an introduction.' } : req
+                      ));
+                      toast.success('Intro requested! Startup notified and added to Pipeline discussion.');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-3 text-sm font-bold text-white shadow-lg hover:shadow-blue-500/40 hover:scale-[1.02] transition-all active:scale-95"
                   >
-                    Accept
+                    <Sparkles className="h-4 w-4" /> Give Intro
                   </button>
-                  <button onClick={() => setActionModal({ req: r, action: 'rejected' })} className="rounded-lg bg-destructive px-4 py-2 text-xs font-semibold text-white transition-smooth hover:bg-destructive/80">Reject</button>
-                </div>
-              )}
-            </div>
-          ))
+                )}
+              </div>
+            );
+          })
         )}
       </div>
+
+      {/* Startup profile modal triggered from Connections */}
+      <AnimatePresence>
+        {viewingStartup && (
+          <StartupProfileModal
+            startup={viewingStartup}
+            onClose={() => setViewingStartup(null)}
+            onCollaborate={() => {
+              setViewingStartup(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {actionModal && (
@@ -2105,7 +2210,7 @@ function IntroRequestModal({
 function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: string }) {
   const [items, setItems] = useState<IntroRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "intro_requested" | "accepted" | "rejected">("all");
 
   useEffect(() => {
     let active = true;
@@ -2177,15 +2282,15 @@ function RequestsView({ isInvestor, userId }: { isInvestor: boolean; userId: str
       </div>
 
       <div className="mb-8 inline-flex flex-wrap rounded-xl border border-border bg-card p-1">
-        {(["all", "pending", "accepted", "rejected"] as const).map((f) => (
+        {(["all", "pending", "intro_requested", "accepted", "rejected"] as const).map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() => setFilter(f as any)}
             className={`rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition-smooth ${
               filter === f ? "bg-gradient-primary text-primary-foreground shadow-elegant" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {f} {f !== "all" && `(${items.filter((i) => i.status === f).length})`}
+            {f === 'intro_requested' ? 'Intro Requested' : f} {f !== "all" && `(${items.filter((i) => i.status === f).length})`}
           </button>
         ))}
       </div>
@@ -2217,7 +2322,7 @@ type LocalIntroRequest = {
   address: string;
   reason: string;
   expected: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'accepted' | 'rejected' | 'intro_requested';
   actionReason?: string;
   date: string;
   appointmentTime?: string;
